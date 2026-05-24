@@ -22,21 +22,25 @@ import {
   computeAllocations,
   getHoldingValue,
   groupHoldingsByAccount,
+  groupHoldingsByCategory,
   groupHoldingsBySymbol,
   holdingsTotalValue,
+  investmentCategoryLabel,
   isCashHolding,
   parseHoldings,
+  resolveHoldingCategory,
   type HoldingRecord,
   type SymbolAggregate,
 } from "@/lib/holdings";
 import { formatCurrency } from "@/lib/utils";
 
-type GroupMode = "account" | "symbol";
+type GroupMode = "account" | "symbol" | "category";
 type ViewMode = "holdings" | "allocation";
 type ChartStyle = "pie" | "table";
 
 function HoldingRow({ holding }: { holding: HoldingRecord }) {
   const value = getHoldingValue(holding);
+  const category = resolveHoldingCategory(holding);
   const label = isCashHolding(holding)
     ? "Cash"
     : holding.description?.trim() || holding.symbol;
@@ -55,6 +59,11 @@ function HoldingRow({ holding }: { holding: HoldingRecord }) {
         {isCashHolding(holding) && (
           <p className="text-xs text-muted-foreground">{label}</p>
         )}
+      </TableCell>
+      <TableCell>
+        <Badge variant="outline" className="font-normal">
+          {investmentCategoryLabel(category)}
+        </Badge>
       </TableCell>
       <TableCell className="text-right tabular-nums">
         {isCashHolding(holding)
@@ -126,6 +135,9 @@ function SymbolAggregateRow({
                   {aggregate.accounts.length} accounts
                 </p>
               )}
+              <Badge variant="outline" className="mt-1 font-normal">
+                {aggregate.categoryLabel}
+              </Badge>
             </div>
           </div>
         </TableCell>
@@ -182,8 +194,8 @@ export default function HoldingsPage() {
     new Map()
   );
   const [loading, setLoading] = useState(true);
-  const [groupMode, setGroupMode] = useState<GroupMode>("account");
-  const [viewMode, setViewMode] = useState<ViewMode>("holdings");
+  const [groupMode, setGroupMode] = useState<GroupMode>("category");
+  const [viewMode, setViewMode] = useState<ViewMode>("allocation");
   const [chartStyle, setChartStyle] = useState<ChartStyle>("pie");
   const [expandedSymbols, setExpandedSymbols] = useState<Set<string>>(
     new Set()
@@ -217,6 +229,10 @@ export default function HoldingsPage() {
     () => groupHoldingsBySymbol(holdings),
     [holdings]
   );
+  const groupedByCategory = useMemo(
+    () => groupHoldingsByCategory(holdings),
+    [holdings]
+  );
   const totalValue = useMemo(() => holdingsTotalValue(holdings), [holdings]);
 
   const accountSections = useMemo(() => {
@@ -239,6 +255,17 @@ export default function HoldingsPage() {
       );
     }
 
+    if (groupMode === "category") {
+      return computeAllocations(
+        groupedByCategory.map((section) => ({
+          id: section.category,
+          label: section.label,
+          value: section.totalMarketValue,
+        })),
+        totalValue
+      );
+    }
+
     return computeAllocations(
       accountSections.map(([accountId, accountHoldings]) => ({
         id: accountId,
@@ -250,7 +277,7 @@ export default function HoldingsPage() {
       })),
       totalValue
     );
-  }, [groupMode, groupedBySymbol, accountSections, accountNames, totalValue]);
+  }, [groupMode, groupedBySymbol, groupedByCategory, accountSections, accountNames, totalValue]);
 
   function toggleSymbol(symbol: string) {
     setExpandedSymbols((prev) => {
@@ -273,6 +300,7 @@ export default function HoldingsPage() {
         <TabsList>
           <TabsTrigger value="account">By account</TabsTrigger>
           <TabsTrigger value="symbol">By symbol</TabsTrigger>
+          <TabsTrigger value="category">By category</TabsTrigger>
         </TabsList>
       </Tabs>
       <div className="flex flex-wrap items-center gap-2">
@@ -341,6 +369,50 @@ export default function HoldingsPage() {
         </p>
       ) : viewMode === "allocation" ? (
         <AllocationView slices={allocationSlices} chartStyle={chartStyle} />
+      ) : groupMode === "category" ? (
+        <div className="space-y-4">
+          {groupedByCategory.map((section) => (
+            <Card key={section.category}>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-base font-medium">
+                  {section.label}
+                </CardTitle>
+                <Badge variant="secondary" className="tabular-nums">
+                  {formatCurrency(section.totalMarketValue)}
+                </Badge>
+              </CardHeader>
+              <CardContent className="p-0 pb-2">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Symbol</TableHead>
+                      <TableHead className="text-right">Qty</TableHead>
+                      <TableHead className="text-right">Avg price</TableHead>
+                      <TableHead className="text-right">Value</TableHead>
+                      <TableHead className="text-right">% of portfolio</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {section.symbols.map((aggregate) => (
+                      <SymbolAggregateRow
+                        key={`${section.category}-${aggregate.symbol}`}
+                        aggregate={aggregate}
+                        accountNames={accountNames}
+                        totalValue={totalValue}
+                        expanded={expandedSymbols.has(
+                          `${section.category}-${aggregate.symbol}`
+                        )}
+                        onToggle={() =>
+                          toggleSymbol(`${section.category}-${aggregate.symbol}`)
+                        }
+                      />
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       ) : groupMode === "symbol" ? (
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -399,6 +471,7 @@ export default function HoldingsPage() {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Symbol</TableHead>
+                        <TableHead>Category</TableHead>
                         <TableHead className="text-right">Qty</TableHead>
                         <TableHead className="text-right">Price</TableHead>
                         <TableHead className="text-right">Value</TableHead>

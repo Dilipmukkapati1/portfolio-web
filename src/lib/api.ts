@@ -100,15 +100,23 @@ export const api = {
         lastSyncedAt?: string;
         lastError?: string;
       };
-      snaptrade: { connected: boolean };
+      snaptrade: {
+        connected: boolean;
+        lastSyncedAt?: string;
+        lastError?: string;
+      };
     }>("/integrations/status"),
   connectSimplefin: (setupToken: string) =>
     apiFetch("/integrations/simplefin/connect", {
       method: "POST",
       body: JSON.stringify({ setupToken }),
     }),
-  syncSimplefin: (now = false) =>
-    apiFetch(`/integrations/simplefin/sync${now ? "?now=true" : ""}`, {
+  syncSimplefin: () =>
+    apiFetch("/integrations/simplefin/sync", {
+      method: "POST",
+    }),
+  syncSnaptrade: () =>
+    apiFetch("/integrations/snaptrade/sync", {
       method: "POST",
     }),
   connectSnaptrade: () =>

@@ -1,7 +1,9 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { ArrowLeftRight } from "lucide-react";
 import { motion } from "framer-motion";
-import { formatCurrency } from "@/lib/utils";
+import { EmptyState } from "@/components/shared/empty-state";
 import { PageHeader } from "@/components/shared/page-header";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -12,14 +14,26 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-
-const MOCK_TRANSACTIONS = [
-  { date: "2025-05-20", description: "Grocery Store", category: "Food", amount: -84.32 },
-  { date: "2025-05-18", description: "Payroll Deposit", category: "Income", amount: 4200 },
-  { date: "2025-05-15", description: "Electric Bill", category: "Utilities", amount: -112.5 },
-];
+import { api } from "@/lib/api";
+import {
+  parseTransactions,
+  transactionCategoryLabel,
+  type TransactionRecord,
+} from "@/lib/transactions";
+import { formatCurrency, formatDate } from "@/lib/utils";
 
 export default function TransactionsPage() {
+  const [transactions, setTransactions] = useState<TransactionRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    api
+      .getTransactions()
+      .then((res) => setTransactions(parseTransactions(res.transactions)))
+      .catch(() => setTransactions([]))
+      .finally(() => setLoading(false));
+  }, []);
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
@@ -27,36 +41,58 @@ export default function TransactionsPage() {
       className="space-y-6"
     >
       <PageHeader title="Transactions" description="Recent account activity" />
-      <div className="rounded-lg border border-border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Date</TableHead>
-              <TableHead>Description</TableHead>
-              <TableHead>Category</TableHead>
-              <TableHead className="text-right">Amount</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {MOCK_TRANSACTIONS.map((t) => (
-              <TableRow key={`${t.date}-${t.description}`}>
-                <TableCell>{t.date}</TableCell>
-                <TableCell>{t.description}</TableCell>
-                <TableCell>
-                  <Badge variant="secondary">{t.category}</Badge>
-                </TableCell>
-                <TableCell
-                  className={`text-right font-medium ${
-                    t.amount >= 0 ? "text-emerald-400" : "text-rose-400"
-                  }`}
-                >
-                  {formatCurrency(t.amount)}
-                </TableCell>
+
+      {loading ? (
+        <p className="text-sm text-muted-foreground">Loading transactions…</p>
+      ) : transactions.length === 0 ? (
+        <EmptyState
+          icon={ArrowLeftRight}
+          title="No transactions found"
+          description="Connect a bank account and sync from Connections to see recent activity."
+        />
+      ) : (
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="rounded-lg border border-border"
+        >
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Date</TableHead>
+                <TableHead>Description</TableHead>
+                <TableHead>Category</TableHead>
+                <TableHead className="text-right">Amount</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+            </TableHeader>
+            <TableBody>
+              {transactions.map((t) => (
+                <TableRow key={t.txnId}>
+                  <TableCell>{formatDate(t.date)}</TableCell>
+                  <TableCell>
+                    <div className="font-medium">{t.description}</div>
+                    {t.pending && (
+                      <p className="text-xs text-muted-foreground">Pending</p>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="secondary">
+                      {transactionCategoryLabel(t.category)}
+                    </Badge>
+                  </TableCell>
+                  <TableCell
+                    className={`text-right font-medium tabular-nums ${
+                      t.amount >= 0 ? "text-emerald-400" : "text-rose-400"
+                    }`}
+                  >
+                    {formatCurrency(t.amount)}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </motion.div>
+      )}
     </motion.div>
   );
 }

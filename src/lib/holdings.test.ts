@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  categorizeInvestment,
   computeAllocations,
   getHoldingValue,
+  groupHoldingsByCategory,
   groupHoldingsBySymbol,
+  investmentCategoryLabel,
   type HoldingRecord,
 } from "./holdings.js";
 
@@ -94,6 +97,61 @@ describe("computeAllocations", () => {
 
     expect(allocations[0].percent).toBe(75);
     expect(allocations[1].percent).toBe(25);
+  });
+});
+
+describe("groupHoldingsByCategory", () => {
+  it("groups holdings into category sections with symbol aggregates", () => {
+    const holdings = [
+      holding({
+        holdingId: "1-VOO",
+        accountId: "1",
+        symbol: "VOO",
+        description: "Vanguard S&P 500 ETF",
+        marketValue: 4000,
+      }),
+      holding({
+        holdingId: "2-AAPL",
+        accountId: "2",
+        symbol: "AAPL",
+        description: "Apple Inc.",
+        marketValue: 2000,
+      }),
+      holding({
+        holdingId: "1-CASH",
+        accountId: "1",
+        symbol: "CASH",
+        marketValue: 500,
+      }),
+    ];
+
+    const sections = groupHoldingsByCategory(holdings);
+
+    expect(sections.map((section) => section.category)).toEqual([
+      "etf",
+      "stock",
+      "cash",
+    ]);
+    expect(sections[0].symbols).toHaveLength(1);
+    expect(sections[0].totalMarketValue).toBe(4000);
+    expect(investmentCategoryLabel(sections[1].category)).toBe("Stock");
+  });
+});
+
+describe("categorizeInvestment", () => {
+  it("classifies ETFs and stocks", () => {
+    expect(
+      categorizeInvestment({
+        symbol: "VOO",
+        description: "Vanguard S&P 500 ETF",
+      })
+    ).toBe("etf");
+    expect(
+      categorizeInvestment({
+        symbol: "AAPL",
+        description: "Apple Inc.",
+      })
+    ).toBe("stock");
   });
 });
 

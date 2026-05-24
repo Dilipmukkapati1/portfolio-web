@@ -33,7 +33,8 @@ export default function ConnectionsPage() {
   const [simplefinDialogOpen, setSimplefinDialogOpen] = useState(false);
   const [setupToken, setSetupToken] = useState("");
   const [connecting, setConnecting] = useState(false);
-  const [syncing, setSyncing] = useState(false);
+  const [simplefinSyncing, setSimplefinSyncing] = useState(false);
+  const [snaptradeSyncing, setSnaptradeSyncing] = useState(false);
   const [snaptradeConnecting, setSnaptradeConnecting] = useState(false);
 
   const loadConnectionStatus = useCallback(async () => {
@@ -77,7 +78,7 @@ export default function ConnectionsPage() {
         title: "SimpleFIN connected",
         description:
           result.message ??
-          "Your bank accounts will sync shortly.",
+          "Click Sync now to fetch your accounts and transactions.",
       });
       setSetupToken("");
       setSimplefinDialogOpen(false);
@@ -96,9 +97,9 @@ export default function ConnectionsPage() {
   }
 
   async function handleSimplefinSync() {
-    setSyncing(true);
+    setSimplefinSyncing(true);
     try {
-      const result = (await api.syncSimplefin(true)) as {
+      const result = (await api.syncSimplefin()) as {
         message?: string;
         accountsSynced?: number;
       };
@@ -119,7 +120,35 @@ export default function ConnectionsPage() {
         variant: "destructive",
       });
     } finally {
-      setSyncing(false);
+      setSimplefinSyncing(false);
+    }
+  }
+
+  async function handleSnaptradeSync() {
+    setSnaptradeSyncing(true);
+    try {
+      const result = (await api.syncSnaptrade()) as {
+        message?: string;
+        holdingsSynced?: number;
+      };
+      toast({
+        title: "Sync complete",
+        description:
+          result.message ??
+          (result.holdingsSynced !== undefined
+            ? `${result.holdingsSynced} holding(s) updated.`
+            : "Holdings refreshed."),
+      });
+      window.dispatchEvent(new Event("portfolio:accounts-synced"));
+      void loadConnectionStatus();
+    } catch (e) {
+      toast({
+        title: "Sync failed",
+        description: e instanceof Error ? e.message : "Could not sync SnapTrade",
+        variant: "destructive",
+      });
+    } finally {
+      setSnaptradeSyncing(false);
     }
   }
 
@@ -175,7 +204,8 @@ export default function ConnectionsPage() {
                 SimpleFIN Bridge
                 <ExternalLink className="h-3 w-3" aria-hidden />
               </a>
-              .
+              . Data is saved locally after each sync — click Sync now to refresh
+              from your bank.
             </p>
             <ol className="list-decimal space-y-1 pl-5 text-sm text-muted-foreground">
               <li>Sign up and connect your banks in SimpleFIN Bridge.</li>
@@ -198,9 +228,9 @@ export default function ConnectionsPage() {
                 <Button
                   variant="outline"
                   onClick={() => void handleSimplefinSync()}
-                  disabled={syncing}
+                  disabled={simplefinSyncing}
                 >
-                  {syncing ? (
+                  {simplefinSyncing ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   ) : (
                     <RefreshCw className="mr-2 h-4 w-4" />
@@ -228,9 +258,14 @@ export default function ConnectionsPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Sync investment holdings and trades from brokerages.
+              Sync investment holdings and trades from brokerages. Data is saved
+              locally after each sync — click Sync now to refresh from SnapTrade.
             </p>
-            <motion.div whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}>
+            <motion.div
+              className="flex flex-wrap gap-2"
+              whileHover={{ scale: 1.01 }}
+              whileTap={{ scale: 0.99 }}
+            >
               <Button
                 onClick={() => void handleSnaptradeConnect()}
                 disabled={snaptradeConnecting}
@@ -240,6 +275,20 @@ export default function ConnectionsPage() {
                 )}
                 {snaptradeStatus === "connected" ? "Reconnect" : "Connect"}
               </Button>
+              {snaptradeStatus === "connected" && (
+                <Button
+                  variant="outline"
+                  onClick={() => void handleSnaptradeSync()}
+                  disabled={snaptradeSyncing}
+                >
+                  {snaptradeSyncing ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                  )}
+                  Sync now
+                </Button>
+              )}
             </motion.div>
           </CardContent>
         </Card>

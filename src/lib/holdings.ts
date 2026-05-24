@@ -1,3 +1,20 @@
+export type InvestmentCategory =
+  | "cash"
+  | "stock"
+  | "etf"
+  | "mutual_fund"
+  | "bond"
+  | "other";
+
+export const INVESTMENT_CATEGORY_LABELS: Record<InvestmentCategory, string> = {
+  cash: "Cash",
+  stock: "Stock",
+  etf: "ETF",
+  mutual_fund: "Mutual Fund",
+  bond: "Bond",
+  other: "Other",
+};
+
 export type HoldingRecord = {
   holdingId: string;
   accountId: string;
@@ -7,6 +24,7 @@ export type HoldingRecord = {
   price?: number;
   marketValue?: number;
   currency?: string;
+  category?: InvestmentCategory;
 };
 
 export type SymbolAccountBreakdown = {
@@ -20,10 +38,19 @@ export type SymbolAggregate = {
   symbol: string;
   description?: string;
   isCash: boolean;
+  category: InvestmentCategory;
+  categoryLabel: string;
   totalQuantity: number;
   totalMarketValue: number;
   weightedAvgPrice?: number;
   accounts: SymbolAccountBreakdown[];
+};
+
+export type CategorySection = {
+  category: InvestmentCategory;
+  label: string;
+  totalMarketValue: number;
+  symbols: SymbolAggregate[];
 };
 
 export type AllocationSlice = {
@@ -33,19 +60,112 @@ export type AllocationSlice = {
   percent: number;
 };
 
+const INVESTMENT_CATEGORY_ORDER: InvestmentCategory[] = [
+  "etf",
+  "stock",
+  "mutual_fund",
+  "bond",
+  "cash",
+  "other",
+];
+
+export function investmentCategoryLabel(
+  category: InvestmentCategory
+): string {
+  return INVESTMENT_CATEGORY_LABELS[category];
+}
+
+export function normalizeInvestmentCategory(
+  value?: string | null
+): InvestmentCategory {
+  const normalized = value?.trim().toLowerCase().replace(/[\s-]+/g, "_");
+  if (
+    normalized === "cash" ||
+    normalized === "stock" ||
+    normalized === "etf" ||
+    normalized === "mutual_fund" ||
+    normalized === "bond" ||
+    normalized === "other"
+  ) {
+    return normalized;
+  }
+  return "other";
+}
+
+export function categorizeInvestment(input: {
+  symbol: string;
+  description?: string;
+}): InvestmentCategory {
+  const symbol = input.symbol.trim().toUpperCase();
+  if (symbol === "CASH") return "cash";
+
+  const description = (input.description ?? "").trim();
+  const haystack = `${description} ${symbol}`.toLowerCase();
+
+  if (
+    /\b(etf|exchange[- ]traded fund)\b/i.test(description) ||
+    haystack.includes(" etf")
+  ) {
+    return "etf";
+  }
+
+  if (
+    /\bmutual fund\b/i.test(description) ||
+    (/\bfund\b/i.test(description) &&
+      !/\betf\b/i.test(description) &&
+      (/\b(index|target date|retirement|income)\b/i.test(description) ||
+        /\b(class [a-z0-9]|investor|admiral|institutional|idx)\b/i.test(
+          description
+        )))
+  ) {
+    return "mutual_fund";
+  }
+
+  if (
+    /\b(bond|fixed income|treasury|treas\.|t-bill|t-note|municipal)\b/i.test(
+      haystack
+    ) &&
+    !/\bfund\b/i.test(description)
+  ) {
+    return "bond";
+  }
+
+  if (/\bmoney market\b/i.test(description)) return "cash";
+
+  if (symbol && !symbol.includes(" ")) return "stock";
+
+  return "other";
+}
+
+export function resolveHoldingCategory(
+  holding: HoldingRecord
+): InvestmentCategory {
+  if (holding.category) return holding.category;
+  return categorizeInvestment({
+    symbol: holding.symbol,
+    description: holding.description,
+  });
+}
+
 export function parseHoldings(
   raw: Array<Record<string, unknown>>
 ): HoldingRecord[] {
-  return raw.map((h) => ({
-    holdingId: String(h.holdingId ?? h.id),
-    accountId: String(h.accountId),
-    symbol: String(h.symbol),
-    description: h.description ? String(h.description) : undefined,
-    quantity: Number(h.quantity) || 0,
-    price: h.price != null ? Number(h.price) : undefined,
-    marketValue: h.marketValue != null ? Number(h.marketValue) : undefined,
-    currency: h.currency ? String(h.currency) : undefined,
-  }));
+  return raw.map((h) => {
+    const categoryValue = h.category ? String(h.category) : undefined;
+    return {
+      holdingId: String(h.holdingId ?? h.id),
+      accountId: String(h.accountId),
+      symbol: String(h.symbol),
+      description: h.description ? String(h.description) : undefined,
+      quantity: Number(h.quantity) || 0,
+      price: h.price != null ? Number(h.price) : undefined,
+      marketValue: h.marketValue != null ? Number(h.marketValue) : undefined,
+      currency: h.currency ? String(h.currency) : undefined,
+      category: categoryValue
+        ? normalizeInvestmentCategory(categoryValue)
+        : undefined,
+    };
+  });
 }
 
 export function getHoldingValue(holding: HoldingRecord): number {
@@ -79,6 +199,7 @@ export function groupHoldingsBySymbol(
   for (const holding of holdings) {
     const symbolKey = holding.symbol.toUpperCase();
     const value = getHoldingValue(holding);
+    const category = resolveHoldingCategory(holding);
 
     let aggregate = map.get(symbolKey);
     if (!aggregate) {
@@ -86,6 +207,8 @@ export function groupHoldingsBySymbol(
         symbol: isCashHolding(holding) ? "CASH" : holding.symbol,
         description: holding.description,
         isCash: isCashHolding(holding),
+        category,
+        categoryLabel: investmentCategoryLabel(category),
         totalQuantity: 0,
         totalMarketValue: 0,
         accounts: [],
@@ -118,6 +241,43 @@ export function groupHoldingsBySymbol(
   return [...map.values()].sort((a, b) => {
     if (a.isCash) return 1;
     if (b.isCash) return -1;
+    return b.totalMarketValue - a.totalMarketValue;
+  });
+}
+
+export function groupHoldingsByCategory(
+  holdings: HoldingRecord[]
+): CategorySection[] {
+  const byCategory = new Map<InvestmentCategory, HoldingRecord[]>();
+
+  for (const holding of holdings) {
+    const category = resolveHoldingCategory(holding);
+    const list = byCategory.get(category) ?? [];
+    list.push(holding);
+    byCategory.set(category, list);
+  }
+
+  const sections: CategorySection[] = [];
+
+  for (const category of INVESTMENT_CATEGORY_ORDER) {
+    const categoryHoldings = byCategory.get(category);
+    if (!categoryHoldings?.length) continue;
+
+    const symbols = groupHoldingsBySymbol(categoryHoldings);
+    sections.push({
+      category,
+      label: investmentCategoryLabel(category),
+      totalMarketValue: symbols.reduce(
+        (sum, symbol) => sum + symbol.totalMarketValue,
+        0
+      ),
+      symbols,
+    });
+  }
+
+  return sections.sort((a, b) => {
+    if (a.category === "cash") return 1;
+    if (b.category === "cash") return -1;
     return b.totalMarketValue - a.totalMarketValue;
   });
 }

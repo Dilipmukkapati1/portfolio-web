@@ -1,6 +1,7 @@
 import {
   ArrowLeftRight,
   Calculator,
+  Home,
   Landmark,
   LayoutDashboard,
   Link2,
@@ -17,6 +18,7 @@ export type NavLink = {
 
 export const navLinks: NavLink[] = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/household", label: "Household", icon: Home },
   { href: "/onboarding", label: "Onboarding", icon: Rocket },
   { href: "/connections", label: "Connections", icon: Link2 },
   { href: "/accounts", label: "Accounts", icon: Landmark },

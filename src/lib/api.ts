@@ -1,34 +1,87 @@
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:7071/api";
-const HOUSEHOLD_ID =
-  process.env.NEXT_PUBLIC_DEFAULT_HOUSEHOLD_ID ?? "local-household";
+import type { Household, Member, TaxProfile } from "@/lib/household-types";
+import { getActiveHouseholdId } from "@/lib/household-session";
+import { getWebEnv } from "@/lib/env";
+
+function getApiUrl(): string {
+  return getWebEnv().apiUrl;
+}
 
 async function apiFetch<T>(
   path: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const res = await fetch(`${API_URL}${path}`, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      "x-household-id": HOUSEHOLD_ID,
-      ...options.headers,
-    },
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error((err as { error?: string }).error ?? "API error");
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 30_000);
+
+  try {
+    const res = await fetch(`${getApiUrl()}${path}`, {
+      ...options,
+      signal: controller.signal,
+      headers: {
+        "Content-Type": "application/json",
+        "x-household-id": getActiveHouseholdId(),
+        ...options.headers,
+      },
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: res.statusText }));
+      throw new Error((err as { error?: string }).error ?? "API error");
+    }
+    return res.json() as Promise<T>;
+  } catch (e) {
+    if (e instanceof Error && e.name === "AbortError") {
+      throw new Error(
+        "Request timed out. Is the portfolio API running at " + getApiUrl() + "?"
+      );
+    }
+    if (e instanceof TypeError) {
+      throw new Error(
+        "Cannot reach the API at " +
+          getApiUrl() +
+          ". Start portfolio-api locally (port 7071) or set NEXT_PUBLIC_API_URL."
+      );
+    }
+    throw e;
+  } finally {
+    clearTimeout(timeout);
   }
-  return res.json() as Promise<T>;
 }
 
 export const api = {
   health: () => apiFetch<{ status: string }>("/health"),
-  getHousehold: () => apiFetch<Record<string, unknown>>("/household"),
+  listHouseholds: () =>
+    apiFetch<{ households: Household[] }>("/households"),
+  getHousehold: () => apiFetch<Household>("/household"),
+  getHouseholdById: (householdId: string) =>
+    apiFetch<Household>(`/households/${encodeURIComponent(householdId)}`),
   updateHousehold: (body: unknown) =>
-    apiFetch("/household", { method: "PUT", body: JSON.stringify(body) }),
+    apiFetch<Household>("/household", {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
+  updateHouseholdById: (householdId: string, body: unknown) =>
+    apiFetch<Household>(`/households/${encodeURIComponent(householdId)}`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
   createHousehold: (body: unknown) =>
-    apiFetch("/household", { method: "POST", body: JSON.stringify(body) }),
+    apiFetch<Household>("/household", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  createHouseholdWithId: (body: unknown) =>
+    apiFetch<Household>("/households", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  deleteHouseholds: (householdIds: string[]) =>
+    apiFetch<{
+      deleted: string[];
+      failed: Array<{ householdId: string; reason: string }>;
+    }>("/households", {
+      method: "DELETE",
+      body: JSON.stringify({ householdIds }),
+    }),
   getAccounts: () =>
     apiFetch<{ accounts: Array<Record<string, unknown>> }>("/accounts"),
   getTransactions: (params?: Record<string, string>) => {
@@ -60,7 +113,49 @@ export const api = {
       { method: "POST", body: JSON.stringify(body) }
     ),
   taxStrategies: (wages?: number) =>
-    apiFetch<{ strategies: Array<Record<string, unknown>>; disclaimer: string }>(
-      `/tax/strategies${wages ? `?wages=${wages}` : ""}`
+    apiFetch<{
+      strategies: Array<Record<string, unknown>>;
+      taxProfile?: TaxProfile;
+      disclaimer: string;
+    }>(`/tax/strategies${wages !== undefined ? `?wages=${wages}` : ""}`),
+  listMembers: (householdId?: string) =>
+    apiFetch<{ members: Member[] }>(
+      householdId
+        ? `/households/${encodeURIComponent(householdId)}/members`
+        : "/members"
+    ),
+  saveMembers: (members: unknown[], householdId?: string) =>
+    apiFetch<{ members: Member[] }>(
+      householdId
+        ? `/households/${encodeURIComponent(householdId)}/members`
+        : "/members",
+      { method: "PUT", body: JSON.stringify({ members }) }
+    ),
+  getTaxProfile: (taxYear: number, householdId?: string) =>
+    apiFetch<TaxProfile>(
+      householdId
+        ? `/households/${encodeURIComponent(householdId)}/tax-profiles/${taxYear}`
+        : `/tax-profiles/${taxYear}`
+    ),
+  updateTaxProfile: (
+    taxYear: number,
+    body: unknown,
+    householdId?: string
+  ) =>
+    apiFetch<{ taxProfile: TaxProfile; household: Household }>(
+      householdId
+        ? `/households/${encodeURIComponent(householdId)}/tax-profiles/${taxYear}`
+        : `/tax-profiles/${taxYear}`,
+      { method: "PUT", body: JSON.stringify(body) }
+    ),
+  recomputeTaxProfile: (taxYear: number, body?: unknown, householdId?: string) =>
+    apiFetch<{ taxProfile: TaxProfile; household: Household }>(
+      householdId
+        ? `/households/${encodeURIComponent(householdId)}/tax-profiles/${taxYear}/recompute`
+        : `/tax-profiles/${taxYear}/recompute`,
+      {
+        method: "POST",
+        body: JSON.stringify(body ?? {}),
+      }
     ),
 };

@@ -40,11 +40,13 @@ export default function ConnectionsPage() {
     setSimplefinStatus("loading");
     setSnaptradeStatus("loading");
     try {
-      const { accounts } = await api.getAccounts();
-      const hasSimplefin = accounts.some((a) => a.source === "simplefin");
-      const hasSnaptrade = accounts.some((a) => a.source === "snaptrade");
-      setSimplefinStatus(hasSimplefin ? "connected" : "not_connected");
-      setSnaptradeStatus(hasSnaptrade ? "connected" : "not_connected");
+      const status = await api.getIntegrationsStatus();
+      setSimplefinStatus(
+        status.simplefin.connected ? "connected" : "not_connected"
+      );
+      setSnaptradeStatus(
+        status.snaptrade.connected ? "connected" : "not_connected"
+      );
     } catch {
       setSimplefinStatus("not_connected");
       setSnaptradeStatus("not_connected");
@@ -108,6 +110,7 @@ export default function ConnectionsPage() {
             ? `${result.accountsSynced} account(s) updated.`
             : "Accounts refreshed."),
       });
+      window.dispatchEvent(new Event("portfolio:accounts-synced"));
       void loadConnectionStatus();
     } catch (e) {
       toast({

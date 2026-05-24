@@ -10,7 +10,7 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:3000
+Open http://localhost:3000 and sign in with **admin** / **portfolio** (or values from `AUTH_USERNAME` / `AUTH_PASSWORD` in `.env.local`).
 
 ## Deploy
 

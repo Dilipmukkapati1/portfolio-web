@@ -93,6 +93,15 @@ export const api = {
   getHoldings: () =>
     apiFetch<{ holdings: Array<Record<string, unknown>> }>("/holdings"),
   getNetWorth: () => apiFetch<Record<string, unknown>>("/networth"),
+  getIntegrationsStatus: () =>
+    apiFetch<{
+      simplefin: {
+        connected: boolean;
+        lastSyncedAt?: string;
+        lastError?: string;
+      };
+      snaptrade: { connected: boolean };
+    }>("/integrations/status"),
   connectSimplefin: (setupToken: string) =>
     apiFetch("/integrations/simplefin/connect", {
       method: "POST",

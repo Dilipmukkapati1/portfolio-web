@@ -11,6 +11,8 @@ import {
   X,
 } from "lucide-react";
 import { navLinks } from "@/components/nav-links";
+import { HouseholdProvider, useHousehold } from "@/components/HouseholdProvider";
+import { HouseholdSummary } from "@/components/HouseholdSummary";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -22,7 +24,38 @@ function isActivePath(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function AppShell({ children }: { children: React.ReactNode }) {
+function SidebarHousehold({ showCollapsed }: { showCollapsed: boolean }) {
+  const { household, loading, notFound } = useHousehold();
+
+  if (loading || notFound || !household) {
+    return null;
+  }
+
+  return (
+    <div
+      className={cn(
+        "px-2 pb-2",
+        showCollapsed && "lg:px-2 lg:flex lg:justify-center"
+      )}
+    >
+      <HouseholdSummary
+        household={household}
+        compact
+        className={cn(showCollapsed && "lg:hidden")}
+      />
+      {showCollapsed && (
+        <div
+          className="hidden lg:flex h-9 w-9 items-center justify-center rounded-lg bg-muted text-sm font-semibold"
+          title={household.displayName}
+        >
+          {household.displayName.charAt(0).toUpperCase()}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AppShellInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -162,6 +195,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </ul>
         </nav>
 
+        <SidebarHousehold showCollapsed={showCollapsed} />
+
         <div className="shrink-0 border-t border-border p-2">
           <button
             type="button"
@@ -218,15 +253,50 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <Menu className="h-5 w-5" />
           </Button>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold">Portfolio</p>
-            <p className="truncate text-xs text-muted-foreground">
-              Personal finance dashboard
-            </p>
+            <MobileHeaderTitle />
           </div>
         </header>
 
         <main className="flex-1 p-4 sm:p-6 lg:p-8">{children}</main>
       </div>
     </div>
+  );
+}
+
+function MobileHeaderTitle() {
+  const { household, loading } = useHousehold();
+  if (loading) {
+    return (
+      <>
+        <p className="truncate text-sm font-semibold">Portfolio</p>
+        <p className="truncate text-xs text-muted-foreground">Loading…</p>
+      </>
+    );
+  }
+  if (household) {
+    return (
+      <>
+        <p className="truncate text-sm font-semibold">{household.displayName}</p>
+        <p className="truncate text-xs text-muted-foreground">
+          {household.state} · {household.householdId}
+        </p>
+      </>
+    );
+  }
+  return (
+    <>
+      <p className="truncate text-sm font-semibold">Portfolio</p>
+      <p className="truncate text-xs text-muted-foreground">
+        Personal finance dashboard
+      </p>
+    </>
+  );
+}
+
+export function AppShell({ children }: { children: React.ReactNode }) {
+  return (
+    <HouseholdProvider>
+      <AppShellInner>{children}</AppShellInner>
+    </HouseholdProvider>
   );
 }

@@ -1,6 +1,8 @@
 import {
+  getHoldingValue,
   hasSecurities,
   holdingsTotalValue,
+  isCashHolding,
   type HoldingRecord,
 } from "@/lib/holdings";
 import type { AccountRecord } from "@/lib/types";
@@ -136,4 +138,69 @@ export function computeNetWorth(
 ): number {
   const summary = summarizeAccounts(accounts, holdingsByAccount);
   return summary.netTotal + summary.totalInvestments;
+}
+
+/** Cash in an investment account (CASH rows or balance minus securities). */
+export function investmentAccountCashBalance(
+  account: AccountRecord,
+  holdings: HoldingRecord[]
+): number {
+  if (holdings.length === 0) {
+    return Math.max(account.balance ?? 0, 0);
+  }
+
+  const cashFromHoldings = holdings
+    .filter(isCashHolding)
+    .reduce((sum, holding) => sum + getHoldingValue(holding), 0);
+
+  const securitiesValue = holdings
+    .filter((holding) => !isCashHolding(holding))
+    .reduce((sum, holding) => sum + getHoldingValue(holding), 0);
+
+  if (hasSecurities(holdings)) {
+    const balance = account.balance ?? 0;
+    const residual =
+      balance > 0 ? Math.max(0, balance - securitiesValue) : 0;
+    return Math.max(cashFromHoldings, residual);
+  }
+
+  return Math.max(cashFromHoldings, Math.max(account.balance ?? 0, 0));
+}
+
+function bankAccountCashBalance(
+  account: AccountRecord,
+  holdings: HoldingRecord[]
+): number {
+  if (holdings.length === 0) {
+    return Math.max(account.balance ?? 0, 0);
+  }
+
+  return holdings
+    .filter(isCashHolding)
+    .reduce((sum, holding) => sum + getHoldingValue(holding), 0);
+}
+
+/** Bank balances plus cash sitting in brokerage accounts. */
+export function computeUninvestedCash(
+  accounts: AccountRecord[],
+  holdingsByAccount?: Map<string, HoldingRecord[]>
+): number {
+  let total = 0;
+
+  for (const account of accounts) {
+    if (isCreditAccount(account)) continue;
+
+    const holdings = holdingsByAccount?.get(account.accountId) ?? [];
+
+    if (isInvestmentAccount(account, holdingsByAccount)) {
+      total += investmentAccountCashBalance(account, holdings);
+      continue;
+    }
+
+    if (isBankAccount(account, holdingsByAccount)) {
+      total += bankAccountCashBalance(account, holdings);
+    }
+  }
+
+  return total;
 }

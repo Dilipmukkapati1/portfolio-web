@@ -56,7 +56,13 @@ function describeArc(
   ].join(" ");
 }
 
-function AllocationPieChart({ slices }: { slices: AllocationSlice[] }) {
+function AllocationPieChart({
+  slices,
+  formatAmount = formatCurrency,
+}: {
+  slices: AllocationSlice[];
+  formatAmount?: (amount: number) => string;
+}) {
   const visibleSlices = slices.filter((slice) => slice.value > 0);
   let cumulative = 0;
 
@@ -111,7 +117,7 @@ function AllocationPieChart({ slices }: { slices: AllocationSlice[] }) {
             <span className="min-w-0">
               <span className="font-medium">{slice.label}</span>
               <span className="block text-xs tabular-nums text-muted-foreground">
-                {slice.percent.toFixed(1)}% · {formatCurrency(slice.value)}
+                {slice.percent.toFixed(1)}% · {formatAmount(slice.value)}
               </span>
             </span>
           </li>
@@ -121,7 +127,13 @@ function AllocationPieChart({ slices }: { slices: AllocationSlice[] }) {
   );
 }
 
-function AllocationTable({ slices }: { slices: AllocationSlice[] }) {
+function AllocationTable({
+  slices,
+  formatAmount = formatCurrency,
+}: {
+  slices: AllocationSlice[];
+  formatAmount?: (amount: number) => string;
+}) {
   const sorted = useMemo(
     () => [...slices].sort((a, b) => b.value - a.value),
     [slices]
@@ -141,7 +153,7 @@ function AllocationTable({ slices }: { slices: AllocationSlice[] }) {
           <TableRow key={slice.id}>
             <TableCell className="font-medium">{slice.label}</TableCell>
             <TableCell className="text-right tabular-nums">
-              {formatCurrency(slice.value)}
+              {formatAmount(slice.value)}
             </TableCell>
             <TableCell className="text-right tabular-nums">
               {slice.percent.toFixed(1)}%
@@ -157,19 +169,21 @@ type AllocationViewProps = {
   slices: AllocationSlice[];
   chartStyle: "pie" | "table";
   className?: string;
+  formatAmount?: (amount: number) => string;
 };
 
 export function AllocationView({
   slices,
   chartStyle,
   className,
+  formatAmount,
 }: AllocationViewProps) {
   return (
     <div className={cn("rounded-lg border bg-card p-4", className)}>
       {chartStyle === "pie" ? (
-        <AllocationPieChart slices={slices} />
+        <AllocationPieChart slices={slices} formatAmount={formatAmount} />
       ) : (
-        <AllocationTable slices={slices} />
+        <AllocationTable slices={slices} formatAmount={formatAmount} />
       )}
     </div>
   );

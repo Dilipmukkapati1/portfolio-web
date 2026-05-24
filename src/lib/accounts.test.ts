@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { HoldingRecord } from "./holdings.js";
 import {
+  computeUninvestedCash,
+  investmentAccountCashBalance,
   isBankAccount,
   isCreditAccount,
   isInvestmentAccount,
@@ -216,6 +218,238 @@ describe("summarizeAccounts", () => {
     ]);
     const summary = summarizeAccounts(accounts, holdings);
     expect(summary.totalInvestments).toBe(50_000);
+  });
+});
+
+describe("computeUninvestedCash", () => {
+  it("sums bank cash and brokerage cash holdings", () => {
+    const accounts = [
+      account({
+        accountId: "1",
+        accountType: "depository",
+        balance: 5_000,
+        displayName: "Checking",
+      }),
+      account({
+        accountId: "2",
+        accountType: "investment",
+        balance: 50_000,
+        displayName: "Brokerage",
+      }),
+    ];
+    const holdings = new Map<string, HoldingRecord[]>([
+      [
+        "2",
+        [
+          {
+            holdingId: "h1",
+            accountId: "2",
+            symbol: "VOO",
+            quantity: 10,
+            marketValue: 42_000,
+          },
+          {
+            holdingId: "h2",
+            accountId: "2",
+            symbol: "CASH",
+            quantity: 8_000,
+            marketValue: 8_000,
+          },
+        ],
+      ],
+    ]);
+
+    expect(computeUninvestedCash(accounts, holdings)).toBe(13_000);
+  });
+
+  it("uses brokerage balance when no holdings are synced", () => {
+    const accounts = [
+      account({
+        accountId: "1",
+        accountType: "investment",
+        balance: 12_000,
+        displayName: "Brokerage",
+      }),
+    ];
+
+    expect(computeUninvestedCash(accounts)).toBe(12_000);
+  });
+
+  it("counts residual cash when securities exist but no CASH holding row", () => {
+    const accounts = [
+      account({
+        accountId: "2",
+        accountType: "investment",
+        balance: 50_000,
+        displayName: "Brokerage",
+      }),
+    ];
+    const holdings = new Map<string, HoldingRecord[]>([
+      [
+        "2",
+        [
+          {
+            holdingId: "h1",
+            accountId: "2",
+            symbol: "VOO",
+            quantity: 10,
+            marketValue: 42_000,
+          },
+        ],
+      ],
+    ]);
+
+    expect(computeUninvestedCash(accounts, holdings)).toBe(8_000);
+    expect(investmentAccountCashBalance(accounts[0], holdings.get("2")!)).toBe(
+      8_000
+    );
+  });
+
+  it("counts CASH holdings on bank accounts instead of skipping them", () => {
+    const accounts = [
+      account({
+        accountId: "1",
+        accountType: "depository",
+        balance: 5_000,
+        displayName: "Checking",
+      }),
+      account({
+        accountId: "2",
+        accountType: "investment",
+        balance: 10_000,
+        displayName: "Brokerage",
+      }),
+    ];
+    const holdings = new Map<string, HoldingRecord[]>([
+      [
+        "1",
+        [
+          {
+            holdingId: "h1",
+            accountId: "1",
+            symbol: "CASH",
+            quantity: 5_000,
+            marketValue: 5_000,
+          },
+        ],
+      ],
+    ]);
+
+    expect(computeUninvestedCash(accounts, holdings)).toBe(15_000);
+  });
+
+  it("does not count negative bank balances as uninvested cash", () => {
+    const accounts = [
+      account({
+        accountId: "1",
+        accountType: "depository",
+        balance: -200,
+        displayName: "Checking",
+      }),
+      account({
+        accountId: "2",
+        accountType: "investment",
+        balance: 1_000,
+        displayName: "Brokerage",
+      }),
+    ];
+
+    expect(computeUninvestedCash(accounts)).toBe(1_000);
+  });
+
+  it("uses residual cash when a stale CASH row undercounts balance", () => {
+    const accounts = [
+      account({
+        accountId: "2",
+        accountType: "investment",
+        balance: 50_000,
+        displayName: "Brokerage",
+      }),
+    ];
+    const holdings = new Map<string, HoldingRecord[]>([
+      [
+        "2",
+        [
+          {
+            holdingId: "h1",
+            accountId: "2",
+            symbol: "VOO",
+            quantity: 10,
+            marketValue: 42_000,
+          },
+          {
+            holdingId: "h2",
+            accountId: "2",
+            symbol: "CASH",
+            quantity: 0,
+            marketValue: 0,
+          },
+        ],
+      ],
+    ]);
+
+    expect(computeUninvestedCash(accounts, holdings)).toBe(8_000);
+    expect(investmentAccountCashBalance(accounts[0], holdings.get("2")!)).toBe(
+      8_000
+    );
+  });
+
+  it("ignores holdings tied to accounts that are not in the active list", () => {
+    const accounts = [
+      account({
+        accountId: "1",
+        accountType: "depository",
+        balance: 1_000,
+        displayName: "Checking",
+      }),
+    ];
+    const holdings = new Map<string, HoldingRecord[]>([
+      [
+        "inactive-2",
+        [
+          {
+            holdingId: "h1",
+            accountId: "inactive-2",
+            symbol: "CASH",
+            quantity: 99_000,
+            marketValue: 99_000,
+          },
+        ],
+      ],
+    ]);
+
+    expect(computeUninvestedCash(accounts, holdings)).toBe(1_000);
+  });
+
+  it("handles SnapTrade accounts with positions but no balance or CASH row", () => {
+    const accounts = [
+      account({
+        accountId: "1",
+        source: "snaptrade",
+        accountType: "investment",
+        balance: 0,
+        displayName: "SnapTrade IRA",
+      }),
+    ];
+    const holdings = new Map<string, HoldingRecord[]>([
+      [
+        "1",
+        [
+          {
+            holdingId: "h1",
+            accountId: "1",
+            symbol: "AAPL",
+            quantity: 10,
+            marketValue: 2_000,
+          },
+        ],
+      ],
+    ]);
+
+    expect(computeUninvestedCash(accounts, holdings)).toBe(0);
+    expect(investmentAccountCashBalance(accounts[0], holdings.get("1")!)).toBe(
+      0
+    );
   });
 });
 

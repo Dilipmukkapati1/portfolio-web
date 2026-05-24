@@ -1,20 +1,17 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { motion } from "framer-motion";
 import {
-  ArrowLeftRight,
-  Calculator,
+  Banknote,
   CalendarDays,
   CircleDollarSign,
-  Link as LinkIcon,
   TrendingDown,
   TrendingUp,
-  Wallet,
+  type LucideIcon,
 } from "lucide-react";
 import { AllocationView } from "@/components/holdings/allocation-view";
-import { computeNetWorth, summarizeAccounts } from "@/lib/accounts";
+import { computeNetWorth, computeUninvestedCash, summarizeAccounts } from "@/lib/accounts";
 import { api } from "@/lib/api";
 import {
   computeAllocations,
@@ -35,18 +32,45 @@ import {
   topSpendCategories,
 } from "@/lib/transactions-summary";
 import type { AccountRecord } from "@/lib/types";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrencyWhole } from "@/lib/utils";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatCard } from "@/components/shared/stat-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-const quickLinks = [
-  { href: "/accounts", label: "Accounts", icon: Wallet },
-  { href: "/holdings", label: "Holdings", icon: TrendingUp },
-  { href: "/transactions", label: "Transactions", icon: ArrowLeftRight },
-  { href: "/tax", label: "Tax", icon: Calculator },
-  { href: "/connections", label: "Connections", icon: LinkIcon },
-];
+const rowVariants = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.08 } },
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 8 },
+  show: { opacity: 1, y: 0 },
+};
+
+function SpendMetric({
+  title,
+  value,
+  description,
+  icon: Icon,
+}: {
+  title: string;
+  value: string;
+  description: string;
+  icon: LucideIcon;
+}) {
+  return (
+    <div className="flex h-full flex-col justify-center rounded-lg border border-border bg-muted/20 px-4 py-5">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm font-medium">{title}</p>
+        <Icon className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+      </div>
+      <p className="mt-2 text-2xl font-bold tabular-nums">{value}</p>
+      <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+        {description}
+      </p>
+    </div>
+  );
+}
 
 export default function DashboardPage() {
   const [accounts, setAccounts] = useState<AccountRecord[]>([]);
@@ -102,6 +126,11 @@ export default function DashboardPage() {
     [accounts, holdingsByAccount]
   );
 
+  const uninvestedCash = useMemo(
+    () => computeUninvestedCash(accounts, holdingsByAccount),
+    [accounts, holdingsByAccount]
+  );
+
   const monthSummary = useMemo(
     () =>
       summarizeTransactions(transactions, {
@@ -151,17 +180,14 @@ export default function DashboardPage() {
       />
 
       <motion.div
-        className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"
+        className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
         initial="hidden"
         animate="show"
-        variants={{
-          hidden: {},
-          show: { transition: { staggerChildren: 0.08 } },
-        }}
+        variants={rowVariants}
       >
         <StatCard
           title="Net worth"
-          value={loading ? "—" : formatCurrency(netWorth)}
+          value={loading ? "—" : formatCurrencyWhole(netWorth)}
           description={
             loading
               ? "Loading…"
@@ -173,7 +199,7 @@ export default function DashboardPage() {
         />
         <StatCard
           title="Monthly net credits"
-          value={loading ? "—" : formatCurrency(monthSummary.totalCredits)}
+          value={loading ? "—" : formatCurrencyWhole(monthSummary.totalCredits)}
           description={
             loading
               ? "Loading…"
@@ -182,78 +208,79 @@ export default function DashboardPage() {
           icon={CircleDollarSign}
         />
         <StatCard
-          title="Monthly spend"
-          value={loading ? "—" : formatCurrency(monthSummary.totalSpend)}
+          title="Uninvested cash"
+          value={loading ? "—" : formatCurrencyWhole(uninvestedCash)}
           description={
             loading
               ? "Loading…"
-              : topSpendCategories(monthSummary.spendByCategory)
+              : "Bank cash + brokerage cash"
           }
-          icon={TrendingDown}
-        />
-        <StatCard
-          title="Last 30 days spend"
-          value={loading ? "—" : formatCurrency(last30DaysSummary.totalSpend)}
-          description={
-            loading
-              ? "Loading…"
-              : topSpendCategories(last30DaysSummary.spendByCategory)
-          }
-          icon={CalendarDays}
+          icon={Banknote}
         />
       </motion.div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Holdings by category</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <p className="text-sm text-muted-foreground">Loading holdings…</p>
-          ) : holdings.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              No holdings yet. Sync investment accounts from Connections.
-            </p>
-          ) : (
-            <AllocationView slices={categoryAllocation} chartStyle="pie" />
-          )}
-        </CardContent>
-      </Card>
+      <motion.div
+        className="grid gap-4 lg:grid-cols-2 lg:items-stretch"
+        initial="hidden"
+        animate="show"
+        variants={rowVariants}
+      >
+        <motion.div variants={itemVariants} className="h-full">
+          <Card className="flex h-full flex-col">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg">Holdings by category</CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-1 flex-col justify-center">
+              {loading ? (
+                <p className="text-sm text-muted-foreground">Loading holdings…</p>
+              ) : holdings.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No holdings yet. Sync investment accounts from Connections.
+                </p>
+              ) : (
+                <AllocationView
+                  slices={categoryAllocation}
+                  chartStyle="pie"
+                  className="border-0 bg-transparent p-0"
+                  formatAmount={formatCurrencyWhole}
+                />
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Quick links</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <motion.div
-            className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
-            initial="hidden"
-            animate="show"
-            variants={{
-              hidden: {},
-              show: { transition: { staggerChildren: 0.05 } },
-            }}
-          >
-            {quickLinks.map((link) => (
-              <motion.div
-                key={link.href}
-                variants={{
-                  hidden: { opacity: 0, y: 8 },
-                  show: { opacity: 1, y: 0 },
-                }}
-              >
-                <Link
-                  href={link.href}
-                  className="flex items-center gap-3 rounded-lg border border-border p-4 transition-colors hover:bg-muted/50"
-                >
-                  <link.icon className="h-5 w-5 text-primary" />
-                  <span className="font-medium">{link.label}</span>
-                </Link>
-              </motion.div>
-            ))}
-          </motion.div>
-        </CardContent>
-      </Card>
+        <motion.div variants={itemVariants} className="h-full">
+          <Card className="flex h-full flex-col">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg">Spending</CardTitle>
+            </CardHeader>
+            <CardContent className="grid flex-1 grid-rows-2 gap-4">
+              <SpendMetric
+                title="Monthly spend"
+                value={loading ? "—" : formatCurrencyWhole(monthSummary.totalSpend)}
+                description={
+                  loading
+                    ? "Loading…"
+                    : topSpendCategories(monthSummary.spendByCategory)
+                }
+                icon={TrendingDown}
+              />
+              <SpendMetric
+                title="Last 30 days spend"
+                value={
+                  loading ? "—" : formatCurrencyWhole(last30DaysSummary.totalSpend)
+                }
+                description={
+                  loading
+                    ? "Loading…"
+                    : topSpendCategories(last30DaysSummary.spendByCategory)
+                }
+                icon={CalendarDays}
+              />
+            </CardContent>
+          </Card>
+        </motion.div>
+      </motion.div>
     </motion.div>
   );
 }

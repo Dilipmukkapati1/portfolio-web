@@ -15,6 +15,16 @@ export const INVESTMENT_CATEGORY_LABELS: Record<InvestmentCategory, string> = {
   other: "Other",
 };
 
+/** Dashboard-friendly labels for allocation breakdowns. */
+export const DASHBOARD_CATEGORY_LABELS: Record<InvestmentCategory, string> = {
+  cash: "Cash",
+  stock: "Stocks",
+  etf: "Index Funds & ETFs",
+  mutual_fund: "Mutual Funds",
+  bond: "Bonds",
+  other: "Other",
+};
+
 export type HoldingRecord = {
   holdingId: string;
   accountId: string;

@@ -128,3 +128,12 @@ export function summarizeAccounts(
     netTotal,
   };
 }
+
+/** Bank cash + investments − credit (full household net worth). */
+export function computeNetWorth(
+  accounts: AccountRecord[],
+  holdingsByAccount?: Map<string, HoldingRecord[]>
+): number {
+  const summary = summarizeAccounts(accounts, holdingsByAccount);
+  return summary.netTotal + summary.totalInvestments;
+}

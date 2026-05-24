@@ -451,6 +451,73 @@ describe("computeUninvestedCash", () => {
       0
     );
   });
+
+  it("counts money market and category=cash holdings without a CASH symbol", () => {
+    const accounts = [
+      account({
+        accountId: "1",
+        source: "snaptrade",
+        accountType: "investment",
+        balance: 0,
+        displayName: "SnapTrade IRA",
+      }),
+    ];
+    const holdings = new Map<string, HoldingRecord[]>([
+      [
+        "1",
+        [
+          {
+            holdingId: "h1",
+            accountId: "1",
+            symbol: "AAPL",
+            quantity: 10,
+            marketValue: 10_000,
+          },
+          {
+            holdingId: "h2",
+            accountId: "1",
+            symbol: "VMFXX",
+            description: "Vanguard Federal Money Market Fund",
+            quantity: 1,
+            marketValue: 2_260,
+            category: "cash",
+          },
+        ],
+      ],
+    ]);
+
+    expect(computeUninvestedCash(accounts, holdings)).toBe(2_260);
+    expect(investmentAccountCashBalance(accounts[0], holdings.get("1")!)).toBe(
+      2_260
+    );
+  });
+
+  it("falls back to bank balance when holdings exist but none are cash", () => {
+    const accounts = [
+      account({
+        accountId: "1",
+        accountType: "depository",
+        balance: 2_260,
+        displayName: "Checking",
+      }),
+    ];
+    const holdings = new Map<string, HoldingRecord[]>([
+      [
+        "1",
+        [
+          {
+            holdingId: "h1",
+            accountId: "1",
+            symbol: "PENDING",
+            quantity: 1,
+            marketValue: 0,
+          },
+        ],
+      ],
+    ]);
+
+    expect(computeUninvestedCash(accounts, holdings)).toBe(2_260);
+  });
 });
 
 describe("isBankAccount", () => {

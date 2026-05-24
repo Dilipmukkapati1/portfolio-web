@@ -175,9 +175,13 @@ function bankAccountCashBalance(
     return Math.max(account.balance ?? 0, 0);
   }
 
-  return holdings
+  const cashFromHoldings = holdings
     .filter(isCashHolding)
     .reduce((sum, holding) => sum + getHoldingValue(holding), 0);
+
+  if (cashFromHoldings > 0) return cashFromHoldings;
+
+  return Math.max(account.balance ?? 0, 0);
 }
 
 /** Bank balances plus cash sitting in brokerage accounts. */

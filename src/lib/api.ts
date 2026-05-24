@@ -90,6 +90,15 @@ export const api = {
       `/transactions${q ? `?${q}` : ""}`
     );
   },
+  getTransactionSummary: (params: Record<string, string>) => {
+    const q = new URLSearchParams(params).toString();
+    return apiFetch<{
+      totalCredits: number;
+      totalSpend: number;
+      spendByCategory: Record<string, number>;
+      transactionCount: number;
+    }>(`/transactions/summary?${q}`);
+  },
   getHoldings: () =>
     apiFetch<{ holdings: Array<Record<string, unknown>> }>("/holdings"),
   getNetWorth: () => apiFetch<Record<string, unknown>>("/networth"),

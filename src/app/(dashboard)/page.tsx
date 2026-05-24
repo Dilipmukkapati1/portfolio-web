@@ -22,7 +22,7 @@ import {
   parseHoldings,
   type HoldingRecord,
 } from "@/lib/holdings";
-import { parseTransactions, type TransactionRecord } from "@/lib/transactions";
+import { parseTransactions } from "@/lib/transactions";
 import {
   currentMonthLabel,
   earliestDashboardTransactionDate,
@@ -30,6 +30,7 @@ import {
   rollingDaysStartDate,
   summarizeTransactions,
   topSpendCategories,
+  type TransactionPeriodSummary,
 } from "@/lib/transactions-summary";
 import type { AccountRecord } from "@/lib/types";
 import { formatCurrencyWhole } from "@/lib/utils";
@@ -72,22 +73,99 @@ function SpendMetric({
   );
 }
 
+function todayDate(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
 export default function DashboardPage() {
   const [accounts, setAccounts] = useState<AccountRecord[]>([]);
   const [holdings, setHoldings] = useState<HoldingRecord[]>([]);
-  const [transactions, setTransactions] = useState<TransactionRecord[]>([]);
+  const [monthSummary, setMonthSummary] = useState<TransactionPeriodSummary>({
+    totalCredits: 0,
+    totalSpend: 0,
+    spendByCategory: {},
+    transactionCount: 0,
+  });
+  const [last30DaysSummary, setLast30DaysSummary] =
+    useState<TransactionPeriodSummary>({
+      totalCredits: 0,
+      totalSpend: 0,
+      spendByCategory: {},
+      transactionCount: 0,
+    });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    Promise.all([
-      api.getAccounts(),
-      api.getHoldings(),
-      api.getTransactions({
-        startDate: earliestDashboardTransactionDate(),
-        limit: "500",
-      }),
-    ])
-      .then(([accountsRes, holdingsRes, transactionsRes]) => {
+    let cancelled = false;
+
+    async function loadTransactionSummaries(endDate: string) {
+      try {
+        const [monthRes, last30Res] = await Promise.all([
+          api.getTransactionSummary({
+            startDate: monthStartDate(),
+            endDate,
+          }),
+          api.getTransactionSummary({
+            startDate: rollingDaysStartDate(30),
+            endDate,
+          }),
+        ]);
+        if (cancelled) return;
+        setMonthSummary(monthRes);
+        setLast30DaysSummary(last30Res);
+        return;
+      } catch {
+        // Fall back when summary endpoint or SQL is unavailable.
+      }
+
+      try {
+        const res = await api.getTransactions({
+          startDate: earliestDashboardTransactionDate(),
+          endDate,
+          limit: "500",
+        });
+        if (cancelled) return;
+        const transactions = parseTransactions(res.transactions);
+        setMonthSummary(
+          summarizeTransactions(transactions, {
+            startDate: monthStartDate(),
+            endDate,
+          })
+        );
+        setLast30DaysSummary(
+          summarizeTransactions(transactions, {
+            startDate: rollingDaysStartDate(30),
+            endDate,
+          })
+        );
+      } catch {
+        if (!cancelled) {
+          setMonthSummary({
+            totalCredits: 0,
+            totalSpend: 0,
+            spendByCategory: {},
+            transactionCount: 0,
+          });
+          setLast30DaysSummary({
+            totalCredits: 0,
+            totalSpend: 0,
+            spendByCategory: {},
+            transactionCount: 0,
+          });
+        }
+      }
+    }
+
+    async function load() {
+      setLoading(true);
+      const endDate = todayDate();
+
+      try {
+        const [accountsRes, holdingsRes] = await Promise.all([
+          api.getAccounts(),
+          api.getHoldings(),
+        ]);
+        if (cancelled) return;
         setAccounts(
           accountsRes.accounts.map((a) => ({
             accountId: String(a.accountId),
@@ -101,14 +179,22 @@ export default function DashboardPage() {
           }))
         );
         setHoldings(parseHoldings(holdingsRes.holdings));
-        setTransactions(parseTransactions(transactionsRes.transactions));
-      })
-      .catch(() => {
-        setAccounts([]);
-        setHoldings([]);
-        setTransactions([]);
-      })
-      .finally(() => setLoading(false));
+      } catch {
+        if (!cancelled) {
+          setAccounts([]);
+          setHoldings([]);
+        }
+      }
+
+      await loadTransactionSummaries(endDate);
+
+      if (!cancelled) setLoading(false);
+    }
+
+    load();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const holdingsByAccount = useMemo(
@@ -129,22 +215,6 @@ export default function DashboardPage() {
   const uninvestedCash = useMemo(
     () => computeUninvestedCash(accounts, holdingsByAccount),
     [accounts, holdingsByAccount]
-  );
-
-  const monthSummary = useMemo(
-    () =>
-      summarizeTransactions(transactions, {
-        startDate: monthStartDate(),
-      }),
-    [transactions]
-  );
-
-  const last30DaysSummary = useMemo(
-    () =>
-      summarizeTransactions(transactions, {
-        startDate: rollingDaysStartDate(30),
-      }),
-    [transactions]
   );
 
   const categoryAllocation = useMemo(() => {

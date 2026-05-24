@@ -6,6 +6,7 @@ import {
   groupHoldingsByCategory,
   groupHoldingsBySymbol,
   investmentCategoryLabel,
+  isCashHolding,
   type HoldingRecord,
 } from "./holdings.js";
 
@@ -135,6 +136,43 @@ describe("groupHoldingsByCategory", () => {
     expect(sections[0].symbols).toHaveLength(1);
     expect(sections[0].totalMarketValue).toBe(4000);
     expect(investmentCategoryLabel(sections[1].category)).toBe("Stock");
+  });
+});
+
+describe("isCashHolding", () => {
+  it("treats CASH symbol and category=cash positions as cash", () => {
+    expect(
+      isCashHolding(
+        holding({
+          holdingId: "1",
+          accountId: "1",
+          symbol: "CASH",
+          marketValue: 100,
+        })
+      )
+    ).toBe(true);
+    expect(
+      isCashHolding(
+        holding({
+          holdingId: "2",
+          accountId: "1",
+          symbol: "VMFXX",
+          description: "Vanguard Federal Money Market Fund",
+          marketValue: 2_260,
+          category: "cash",
+        })
+      )
+    ).toBe(true);
+    expect(
+      isCashHolding(
+        holding({
+          holdingId: "3",
+          accountId: "1",
+          symbol: "AAPL",
+          marketValue: 500,
+        })
+      )
+    ).toBe(false);
   });
 });
 

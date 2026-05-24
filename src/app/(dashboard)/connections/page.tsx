@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { api } from "@/lib/api";
-import { cn } from "@/lib/utils";
+import { cn, formatDateTime } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 
 const SIMPLEFIN_BRIDGE_URL = "https://beta-bridge.simplefin.org/";
@@ -27,6 +27,9 @@ type ConnectionStatus = "loading" | "connected" | "not_connected";
 export default function ConnectionsPage() {
   const [simplefinStatus, setSimplefinStatus] =
     useState<ConnectionStatus>("loading");
+  const [simplefinLastSyncedAt, setSimplefinLastSyncedAt] = useState<
+    string | undefined
+  >();
   const [snaptradeStatus, setSnaptradeStatus] =
     useState<ConnectionStatus>("loading");
 
@@ -45,6 +48,7 @@ export default function ConnectionsPage() {
       setSimplefinStatus(
         status.simplefin.connected ? "connected" : "not_connected"
       );
+      setSimplefinLastSyncedAt(status.simplefin.lastSyncedAt);
       setSnaptradeStatus(
         status.snaptrade.connected ? "connected" : "not_connected"
       );
@@ -216,6 +220,23 @@ export default function ConnectionsPage() {
               </li>
               <li>Paste the one-time setup token below.</li>
             </ol>
+            {simplefinStatus === "connected" && (
+              <p className="text-sm text-muted-foreground">
+                {simplefinLastSyncedAt ? (
+                  <>
+                    Last synced{" "}
+                    <time
+                      dateTime={simplefinLastSyncedAt}
+                      className="text-foreground"
+                    >
+                      {formatDateTime(simplefinLastSyncedAt)}
+                    </time>
+                  </>
+                ) : (
+                  "Not synced yet — use Sync now to fetch your accounts."
+                )}
+              </p>
+            )}
             <motion.div
               className="flex flex-wrap gap-2"
               whileHover={{ scale: 1.01 }}

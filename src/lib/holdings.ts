@@ -311,7 +311,8 @@ export function holdingsTotalValue(holdings: HoldingRecord[]): number {
 }
 
 export function isCashHolding(holding: HoldingRecord): boolean {
-  return holding.symbol.toUpperCase() === "CASH";
+  if (holding.symbol.toUpperCase() === "CASH") return true;
+  return resolveHoldingCategory(holding) === "cash";
 }
 
 /** Non-cash security positions (brokerage). */

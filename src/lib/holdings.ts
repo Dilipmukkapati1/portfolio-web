@@ -9,6 +9,30 @@ export type HoldingRecord = {
   currency?: string;
 };
 
+export type SymbolAccountBreakdown = {
+  accountId: string;
+  quantity: number;
+  marketValue: number;
+  price?: number;
+};
+
+export type SymbolAggregate = {
+  symbol: string;
+  description?: string;
+  isCash: boolean;
+  totalQuantity: number;
+  totalMarketValue: number;
+  weightedAvgPrice?: number;
+  accounts: SymbolAccountBreakdown[];
+};
+
+export type AllocationSlice = {
+  id: string;
+  label: string;
+  value: number;
+  percent: number;
+};
+
 export function parseHoldings(
   raw: Array<Record<string, unknown>>
 ): HoldingRecord[] {
@@ -22,6 +46,10 @@ export function parseHoldings(
     marketValue: h.marketValue != null ? Number(h.marketValue) : undefined,
     currency: h.currency ? String(h.currency) : undefined,
   }));
+}
+
+export function getHoldingValue(holding: HoldingRecord): number {
+  return holding.marketValue ?? holding.quantity * (holding.price ?? 0);
 }
 
 export function groupHoldingsByAccount(
@@ -43,8 +71,73 @@ export function groupHoldingsByAccount(
   return map;
 }
 
+export function groupHoldingsBySymbol(
+  holdings: HoldingRecord[]
+): SymbolAggregate[] {
+  const map = new Map<string, SymbolAggregate>();
+
+  for (const holding of holdings) {
+    const symbolKey = holding.symbol.toUpperCase();
+    const value = getHoldingValue(holding);
+
+    let aggregate = map.get(symbolKey);
+    if (!aggregate) {
+      aggregate = {
+        symbol: isCashHolding(holding) ? "CASH" : holding.symbol,
+        description: holding.description,
+        isCash: isCashHolding(holding),
+        totalQuantity: 0,
+        totalMarketValue: 0,
+        accounts: [],
+      };
+      map.set(symbolKey, aggregate);
+    }
+
+    if (!aggregate.description && holding.description) {
+      aggregate.description = holding.description;
+    }
+
+    aggregate.totalQuantity += holding.quantity;
+    aggregate.totalMarketValue += value;
+    aggregate.accounts.push({
+      accountId: holding.accountId,
+      quantity: holding.quantity,
+      marketValue: value,
+      price: holding.price,
+    });
+  }
+
+  for (const aggregate of map.values()) {
+    if (!aggregate.isCash && aggregate.totalQuantity > 0) {
+      aggregate.weightedAvgPrice =
+        aggregate.totalMarketValue / aggregate.totalQuantity;
+    }
+    aggregate.accounts.sort((a, b) => b.marketValue - a.marketValue);
+  }
+
+  return [...map.values()].sort((a, b) => {
+    if (a.isCash) return 1;
+    if (b.isCash) return -1;
+    return b.totalMarketValue - a.totalMarketValue;
+  });
+}
+
+export function computeAllocations(
+  slices: Array<{ id: string; label: string; value: number }>,
+  total?: number
+): AllocationSlice[] {
+  const sum = total ?? slices.reduce((acc, slice) => acc + slice.value, 0);
+  if (sum <= 0) {
+    return slices.map((slice) => ({ ...slice, percent: 0 }));
+  }
+  return slices.map((slice) => ({
+    ...slice,
+    percent: (slice.value / sum) * 100,
+  }));
+}
+
 export function holdingsTotalValue(holdings: HoldingRecord[]): number {
-  return holdings.reduce((sum, h) => sum + (h.marketValue ?? 0), 0);
+  return holdings.reduce((sum, h) => sum + getHoldingValue(h), 0);
 }
 
 export function isCashHolding(holding: HoldingRecord): boolean {

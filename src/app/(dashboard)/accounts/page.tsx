@@ -62,11 +62,11 @@ function SummaryCard({
         >
           <Icon className="h-5 w-5" aria-hidden />
         </div>
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
             {label}
           </p>
-          <p className="text-xl font-semibold tabular-nums">{value}</p>
+          <p className="text-lg font-semibold tabular-nums sm:text-xl">{value}</p>
           <p className="text-xs text-muted-foreground">{sublabel}</p>
         </div>
       </CardContent>
@@ -115,34 +115,41 @@ function AccountTile({
           investment && "border-violet-500/20"
         )}
       >
-        <CardContent className="flex items-center gap-3 p-3">
-          <div
+        <CardContent className="flex flex-col gap-2 p-3 sm:flex-row sm:items-center sm:gap-3">
+          <div className="flex min-w-0 items-start gap-3 sm:flex-1 sm:items-center">
+            <div
+              className={cn(
+                "flex h-9 w-9 shrink-0 items-center justify-center rounded-md",
+                iconClass
+              )}
+            >
+              <Icon className="h-4 w-4" aria-hidden />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                <p className="min-w-0 text-sm font-medium break-words">
+                  {account.displayName}
+                </p>
+                <Badge
+                  variant="outline"
+                  className="shrink-0 text-[10px] px-1.5 py-0"
+                >
+                  {account.source}
+                </Badge>
+              </div>
+              {account.institutionName && (
+                <p className="truncate text-xs text-muted-foreground">
+                  {account.institutionName}
+                </p>
+              )}
+            </div>
+          </div>
+          <p
             className={cn(
-              "flex h-9 w-9 shrink-0 items-center justify-center rounded-md",
-              iconClass
+              "self-end text-sm font-semibold tabular-nums sm:shrink-0 sm:self-auto",
+              valueClass
             )}
           >
-            <Icon className="h-4 w-4" aria-hidden />
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <p className="truncate text-sm font-medium">
-                {account.displayName}
-              </p>
-              <Badge
-                variant="outline"
-                className="shrink-0 text-[10px] px-1.5 py-0"
-              >
-                {account.source}
-              </Badge>
-            </div>
-            {account.institutionName && (
-              <p className="truncate text-xs text-muted-foreground">
-                {account.institutionName}
-              </p>
-            )}
-          </div>
-          <p className={cn("shrink-0 text-sm font-semibold tabular-nums", valueClass)}>
             {credit ? "−" : ""}
             {formatCurrency(Math.abs(balance))}
           </p>

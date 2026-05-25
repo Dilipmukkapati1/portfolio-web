@@ -59,4 +59,6 @@ export interface AccountRecord {
   source: string;
   balance?: number;
   accountType?: string;
+  ownerMemberId?: string;
+  connectionLabel?: string;
 }

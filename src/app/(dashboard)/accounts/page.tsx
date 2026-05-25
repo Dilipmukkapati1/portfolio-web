@@ -5,10 +5,12 @@ import { motion } from "framer-motion";
 import { CreditCard, Landmark, TrendingUp, Wallet } from "lucide-react";
 import {
   accountDisplayBalance,
+  buildAccountNameMap,
   isCreditAccount,
   isInvestmentAccount,
   summarizeAccounts,
 } from "@/lib/accounts";
+import type { Member } from "@/lib/household-types";
 import { api } from "@/lib/api";
 import {
   groupHoldingsByAccount,
@@ -76,9 +78,11 @@ function SummaryCard({
 
 function AccountTile({
   account,
+  displayName,
   holdingsByAccount,
 }: {
   account: AccountRecord;
+  displayName: string;
   holdingsByAccount: Map<string, HoldingRecord[]>;
 }) {
   const credit = isCreditAccount(account);
@@ -128,7 +132,7 @@ function AccountTile({
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                 <p className="min-w-0 text-sm font-medium break-words">
-                  {account.displayName}
+                  {displayName}
                 </p>
                 <Badge
                   variant="outline"
@@ -159,37 +163,97 @@ function AccountTile({
   );
 }
 
+function SummaryAccountCard({
+  account,
+  displayName,
+  holdingsByAccount,
+  accent,
+}: {
+  account: AccountRecord;
+  displayName: string;
+  holdingsByAccount: Map<string, HoldingRecord[]>;
+  accent: "emerald" | "violet";
+}) {
+  const investment = isInvestmentAccount(account, holdingsByAccount);
+  const balance = accountDisplayBalance(account, holdingsByAccount);
+  const Icon = investment ? TrendingUp : balance > 10000 ? Landmark : Wallet;
+  const sublabel = [account.institutionName, account.source]
+    .filter(Boolean)
+    .join(" · ");
+
+  return (
+    <motion.div variants={itemVariants}>
+      <SummaryCard
+        label={displayName}
+        value={formatCurrency(Math.abs(balance))}
+        sublabel={sublabel || "Linked account"}
+        icon={Icon}
+        accent={accent}
+      />
+    </motion.div>
+  );
+}
+
 function AccountSection({
   title,
   accounts,
+  accountNames,
   holdingsByAccount,
   emptyMessage,
+  variant = "tile",
+  accent,
 }: {
   title: string;
   accounts: AccountRecord[];
+  accountNames: Map<string, string>;
   holdingsByAccount: Map<string, HoldingRecord[]>;
   emptyMessage: string;
+  variant?: "tile" | "summary";
+  accent?: "emerald" | "violet";
 }) {
   if (accounts.length === 0) {
     return null;
   }
 
+  const gridClass =
+    variant === "summary"
+      ? "grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
+      : "grid gap-2 sm:grid-cols-2 xl:grid-cols-3";
+
   return (
     <div className="space-y-2">
       <h3 className="text-sm font-medium text-muted-foreground">{title}</h3>
       <motion.div
-        className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3"
+        className={gridClass}
         variants={containerVariants}
         initial="hidden"
         animate="show"
       >
-        {accounts.map((account) => (
-          <AccountTile
-            key={account.accountId}
-            account={account}
-            holdingsByAccount={holdingsByAccount}
-          />
-        ))}
+        {accounts.map((account) => {
+          const displayName =
+            accountNames.get(account.accountId) ?? account.displayName;
+
+          if (variant === "summary" && accent) {
+            return (
+              <SummaryAccountCard
+                key={account.accountId}
+                account={account}
+                displayName={displayName}
+                holdingsByAccount={holdingsByAccount}
+                accent={accent}
+              />
+            );
+          }
+
+          return (
+            <AccountTile
+              key={account.accountId}
+              account={account}
+              displayName={displayName}
+              holdingsByAccount={holdingsByAccount}
+            />
+          );
+        })}
       </motion.div>
     </div>
   );
@@ -197,14 +261,15 @@ function AccountSection({
 
 export default function AccountsPage() {
   const [accounts, setAccounts] = useState<AccountRecord[]>([]);
+  const [members, setMembers] = useState<Member[]>([]);
   const [holdingsByAccount, setHoldingsByAccount] = useState(
     new Map<string, HoldingRecord[]>()
   );
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    Promise.all([api.getAccounts(), api.getHoldings()])
-      .then(([accountsRes, holdingsRes]) => {
+    Promise.all([api.getAccounts(), api.getHoldings(), api.listMembers()])
+      .then(([accountsRes, holdingsRes, membersRes]) => {
         setAccounts(
           accountsRes.accounts.map((a) => ({
             accountId: String(a.accountId),
@@ -215,14 +280,22 @@ export default function AccountsPage() {
             source: String(a.source),
             balance: Number(a.balance) || 0,
             accountType: a.accountType ? String(a.accountType) : undefined,
+            ownerMemberId: a.ownerMemberId
+              ? String(a.ownerMemberId)
+              : undefined,
+            connectionLabel: a.connectionLabel
+              ? String(a.connectionLabel)
+              : undefined,
           }))
         );
+        setMembers(membersRes.members);
         setHoldingsByAccount(
           groupHoldingsByAccount(parseHoldings(holdingsRes.holdings))
         );
       })
       .catch(() => {
         setAccounts([]);
+        setMembers([]);
         setHoldingsByAccount(new Map());
       })
       .finally(() => setLoading(false));
@@ -231,6 +304,11 @@ export default function AccountsPage() {
   const summary = useMemo(
     () => summarizeAccounts(accounts, holdingsByAccount),
     [accounts, holdingsByAccount]
+  );
+
+  const accountNames = useMemo(
+    () => buildAccountNameMap(accounts, members),
+    [accounts, members]
   );
 
   const hasAnyAccounts =
@@ -274,9 +352,9 @@ export default function AccountsPage() {
           accent="rose"
         />
         <SummaryCard
-          label="Net cash"
-          value={formatCurrency(summary.netTotal)}
-          sublabel="Bank cash minus credit"
+          label="Uninvested cash"
+          value={formatCurrency(summary.totalUninvestedCash)}
+          sublabel="Bank + brokerage cash"
           icon={Landmark}
           accent="blue"
         />
@@ -298,18 +376,25 @@ export default function AccountsPage() {
           <AccountSection
             title="Bank accounts"
             accounts={summary.bankAccounts}
+            accountNames={accountNames}
             holdingsByAccount={holdingsByAccount}
             emptyMessage="No bank accounts"
+            variant="summary"
+            accent="emerald"
           />
           <AccountSection
             title="Investment accounts"
             accounts={summary.investmentAccounts}
+            accountNames={accountNames}
             holdingsByAccount={holdingsByAccount}
             emptyMessage="No investment accounts"
+            variant="summary"
+            accent="violet"
           />
           <AccountSection
             title="Credit & loans"
             accounts={summary.creditAccounts}
+            accountNames={accountNames}
             holdingsByAccount={holdingsByAccount}
             emptyMessage="No credit accounts"
           />

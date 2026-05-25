@@ -6,6 +6,7 @@ import {
   type HoldingRecord,
 } from "@/lib/holdings";
 import type { AccountRecord } from "@/lib/types";
+import { getInitials } from "@/lib/utils";
 
 const BANK_ACCOUNT_TYPES = new Set(["depository", "checking", "savings"]);
 const CREDIT_ACCOUNT_TYPES = new Set(["credit", "loan"]);
@@ -103,10 +104,10 @@ export function summarizeAccounts(
     isInvestmentAccount(a, holdingsByAccount)
   );
 
-  const bankNet = bankAccounts.reduce(
-    (sum, a) => sum + (a.balance ?? 0),
-    0
-  );
+  const bankNet = bankAccounts.reduce((sum, a) => {
+    const holdings = holdingsByAccount?.get(a.accountId) ?? [];
+    return sum + bankAccountCashBalance(a, holdings);
+  }, 0);
   const totalInvestments = investmentAccounts.reduce(
     (sum, a) => sum + accountDisplayBalance(a, holdingsByAccount),
     0
@@ -128,7 +129,77 @@ export function summarizeAccounts(
     totalInvestments,
     totalCredit,
     netTotal,
+    totalUninvestedCash: computeUninvestedCash(accounts, holdingsByAccount),
   };
+}
+
+/** Prefix account labels with owner initials: `{initials}-accountName`. */
+function resolveOwnerMemberId(
+  connectionLabel: string | undefined,
+  members: Array<{ id: string; name: string; isActive?: boolean; relationship?: string }>
+): string | undefined {
+  const label = connectionLabel?.trim();
+  if (!label) return undefined;
+
+  const lower = label.toLowerCase();
+  const active = members.filter((member) => member.isActive !== false);
+  if (active.length === 0) return undefined;
+
+  for (const member of active) {
+    const name = member.name.trim();
+    const nameLower = name.toLowerCase();
+    if (
+      lower === nameLower ||
+      lower.includes(nameLower) ||
+      nameLower.includes(lower)
+    ) {
+      return member.id;
+    }
+    const first = name.split(/\s+/)[0]?.toLowerCase();
+    if (first && first.length >= 2 && lower.includes(first)) {
+      return member.id;
+    }
+  }
+
+  if (active.length === 1) return active[0]!.id;
+  return active.find((member) => member.relationship === "self")?.id;
+}
+
+export function formatAccountDisplayName(
+  displayName: string,
+  ownerInitials?: string
+): string {
+  const trimmed = displayName.trim();
+  if (!ownerInitials) return trimmed;
+  const prefix = `${ownerInitials}-`;
+  if (trimmed.toLowerCase().startsWith(prefix.toLowerCase())) return trimmed;
+  return `${ownerInitials}-${trimmed}`;
+}
+
+export function buildAccountNameMap(
+  accounts: AccountRecord[],
+  members: Array<{
+    id: string;
+    name: string;
+    isActive?: boolean;
+    relationship?: string;
+  }>
+): Map<string, string> {
+  const initialsByMember = new Map(
+    members.map((member) => [member.id, getInitials(member.name)] as const)
+  );
+  const names = new Map<string, string>();
+  for (const account of accounts) {
+    const ownerId =
+      account.ownerMemberId ??
+      resolveOwnerMemberId(account.connectionLabel, members);
+    const initials = ownerId ? initialsByMember.get(ownerId) : undefined;
+    names.set(
+      account.accountId,
+      formatAccountDisplayName(account.displayName, initials)
+    );
+  }
+  return names;
 }
 
 /** Bank cash + investments − credit (full household net worth). */

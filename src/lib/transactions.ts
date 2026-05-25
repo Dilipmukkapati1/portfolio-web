@@ -1,4 +1,5 @@
 export type TransactionRecord = {
+  id: string;
   txnId: string;
   accountId: string;
   amount: number;
@@ -7,6 +8,24 @@ export type TransactionRecord = {
   category: string;
   pending: boolean;
 };
+
+export function buildTransactionCursor(
+  transaction: Pick<TransactionRecord, "date" | "id">
+): string {
+  const json = JSON.stringify({
+    date: transaction.date,
+    id: transaction.id,
+  });
+  const bytes = new TextEncoder().encode(json);
+  let binary = "";
+  for (const byte of bytes) {
+    binary += String.fromCharCode(byte);
+  }
+  return btoa(binary)
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+}
 
 const CATEGORY_LABELS: Record<string, string> = {
   income: "Income",
@@ -35,6 +54,7 @@ export function parseTransactions(
   raw: Array<Record<string, unknown>>
 ): TransactionRecord[] {
   return raw.map((t) => ({
+    id: String(t.id ?? t.txnId),
     txnId: String(t.txnId ?? t.id),
     accountId: String(t.accountId),
     amount: Number(t.amount) || 0,

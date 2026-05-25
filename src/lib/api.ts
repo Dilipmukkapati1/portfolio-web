@@ -91,9 +91,11 @@ export const api = {
     apiFetch<{ accounts: Array<Record<string, unknown>> }>("/accounts"),
   getTransactions: (params?: Record<string, string>) => {
     const q = new URLSearchParams(params).toString();
-    return apiFetch<{ transactions: Array<Record<string, unknown>> }>(
-      `/transactions${q ? `?${q}` : ""}`
-    );
+    return apiFetch<{
+      transactions: Array<Record<string, unknown>>;
+      hasMore: boolean;
+      nextCursor?: string;
+    }>(`/transactions${q ? `?${q}` : ""}`);
   },
   getTransactionSummary: (params: Record<string, string>) => {
     const q = new URLSearchParams(params).toString();

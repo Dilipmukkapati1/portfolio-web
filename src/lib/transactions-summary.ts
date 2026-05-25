@@ -9,6 +9,33 @@ export type TransactionPeriodSummary = {
   transactionCount: number;
 };
 
+export type TransactionListSummary = {
+  netSum: number;
+  totalCredits: number;
+  totalDebits: number;
+};
+
+export function summarizeTransactionList(
+  transactions: TransactionRecord[]
+): TransactionListSummary {
+  let totalCredits = 0;
+  let totalDebits = 0;
+
+  for (const txn of transactions) {
+    if (txn.amount > 0) {
+      totalCredits += txn.amount;
+    } else if (txn.amount < 0) {
+      totalDebits += Math.abs(txn.amount);
+    }
+  }
+
+  return {
+    netSum: totalCredits - totalDebits,
+    totalCredits,
+    totalDebits,
+  };
+}
+
 function isExcluded(category: string): boolean {
   return EXCLUDED_CATEGORIES.has(category);
 }

@@ -8,24 +8,29 @@ function getApiUrl(): string {
 
 async function apiFetch<T>(
   path: string,
-  options: RequestInit = {}
+  options: RequestInit & { timeoutMs?: number } = {}
 ): Promise<T> {
+  const { timeoutMs = 60_000, ...fetchOptions } = options;
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 30_000);
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
     const res = await fetch(`${getApiUrl()}${path}`, {
-      ...options,
+      ...fetchOptions,
       signal: controller.signal,
       headers: {
         "Content-Type": "application/json",
         "x-household-id": getActiveHouseholdId(),
-        ...options.headers,
+        ...fetchOptions.headers,
       },
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({ error: res.statusText }));
-      throw new Error((err as { error?: string }).error ?? "API error");
+      const message =
+        (err as { error?: string }).error?.trim() ||
+        res.statusText ||
+        "API error";
+      throw new Error(message);
     }
     return res.json() as Promise<T>;
   } catch (e) {
@@ -123,10 +128,12 @@ export const api = {
   syncSimplefin: () =>
     apiFetch("/integrations/simplefin/sync", {
       method: "POST",
+      timeoutMs: 120_000,
     }),
   syncSnaptrade: () =>
     apiFetch("/integrations/snaptrade/sync", {
       method: "POST",
+      timeoutMs: 120_000,
     }),
   connectSnaptrade: () =>
     apiFetch<{ redirectUri: string }>("/integrations/snaptrade/connect", {

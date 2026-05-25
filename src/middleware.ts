@@ -4,6 +4,11 @@ import { isValidSession, SESSION_COOKIE } from "@/lib/simple-auth";
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // SWA deployment probe — must not redirect (Azure Static Web Apps hybrid Next.js).
+  if (pathname.startsWith("/.swa")) {
+    return NextResponse.next();
+  }
+
   if (pathname.startsWith("/api/auth/")) {
     return NextResponse.next();
   }
@@ -37,6 +42,6 @@ export function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|\\.swa|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };

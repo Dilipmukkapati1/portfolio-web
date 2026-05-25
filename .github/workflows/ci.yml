@@ -18,7 +18,8 @@ jobs:
       - run: npm ci
       - run: npm run build
         env:
-          NEXT_PUBLIC_API_URL: https://example.azurewebsites.net/api
+          NEXT_PUBLIC_API_URL: https://ppm-dev-func-x32hrp.azurewebsites.net/api
+          NEXT_PUBLIC_APP_ENV: development
 
   deploy:
     if: github.ref == 'refs/heads/main'
@@ -34,4 +35,8 @@ jobs:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: upload
           app_location: /
-          output_location: out
+          api_location: ""
+          output_location: ""
+        env:
+          NEXT_PUBLIC_API_URL: https://ppm-dev-func-x32hrp.azurewebsites.net/api
+          NEXT_PUBLIC_APP_ENV: development

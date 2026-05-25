@@ -15,7 +15,7 @@ jobs:
         with:
           node-version: "20"
           cache: npm
-      - run: npm ci
+      - run: npm install --no-audit --no-fund
       - run: npm run build
         env:
           NEXT_PUBLIC_API_URL: https://ppm-dev-func-x32hrp.azurewebsites.net/api

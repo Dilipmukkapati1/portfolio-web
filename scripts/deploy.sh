@@ -8,6 +8,7 @@ source "$ROOT/scripts/lib/terraform-outputs.sh"
 
 DEPLOY_ENV=""
 SKIP_BUILD=false
+STAGING_DIR=""
 
 usage() {
   cat <<'EOF'
@@ -105,7 +106,7 @@ fetch_swa_deployment_token() {
 }
 
 deploy_static_web_app() {
-  local token hostname staging_dir
+  local token hostname
   token="$(fetch_swa_deployment_token)"
   if [[ -z "$token" ]]; then
     echo "Failed to fetch Static Web Apps deployment token." >&2
@@ -114,16 +115,18 @@ deploy_static_web_app() {
 
   # SWA CLI fails when cwd is inside the app folder (artifact path conflict).
   # Deploy from a temp parent directory via symlink (same layout as CI upload).
-  staging_dir="$(mktemp -d "${TMPDIR:-/tmp}/ppm-swa-deploy.XXXXXX")"
+  STAGING_DIR="$(mktemp -d "${TMPDIR:-/tmp}/ppm-swa-deploy.XXXXXX")"
   cleanup_staging() {
-    rm -rf "$staging_dir"
+    if [[ -n "$STAGING_DIR" ]]; then
+      rm -rf "$STAGING_DIR"
+    fi
   }
   trap cleanup_staging EXIT
-  ln -sf "$ROOT" "$staging_dir/web"
+  ln -sf "$ROOT" "$STAGING_DIR/web"
 
   echo "Deploying to Static Web App (${DEPLOY_ENV})..."
   (
-    cd "$staging_dir"
+    cd "$STAGING_DIR"
     npx --yes @azure/static-web-apps-cli deploy \
       --app-location web \
       --env production \

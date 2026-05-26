@@ -12,6 +12,7 @@ interface StatCardProps {
   icon?: LucideIcon;
   trend?: { value: number; label: string };
   className?: string;
+  valueClassName?: string;
 }
 
 export function StatCard({
@@ -21,6 +22,7 @@ export function StatCard({
   icon: Icon,
   trend,
   className,
+  valueClassName,
 }: StatCardProps) {
   return (
     <motion.div
@@ -34,7 +36,14 @@ export function StatCard({
           {Icon && <Icon className="h-4 w-4 text-muted-foreground" />}
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{value}</div>
+          <div
+            className={cn(
+              "text-2xl font-bold tabular-nums",
+              valueClassName
+            )}
+          >
+            {value}
+          </div>
           {description && (
             <p className="text-xs text-muted-foreground mt-1">{description}</p>
           )}

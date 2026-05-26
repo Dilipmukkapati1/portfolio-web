@@ -6,10 +6,21 @@ const HOUSEHOLD_REGISTRY_KEY = "portfolio-household-registry";
 export const HOUSEHOLD_ID_CHANGED_EVENT = "portfolio-household-id-changed";
 
 export function getActiveHouseholdId(): string {
+  const envDefault = webEnv.defaultHouseholdId;
   if (typeof window === "undefined") {
-    return webEnv.defaultHouseholdId;
+    return envDefault;
   }
-  return localStorage.getItem(ACTIVE_HOUSEHOLD_KEY) ?? webEnv.defaultHouseholdId;
+
+  const stored = localStorage.getItem(ACTIVE_HOUSEHOLD_KEY);
+  if (!stored) return envDefault;
+
+  // Browser may still have an old default after switching to the dev API/household.
+  if (stored === "local-household" && envDefault === "dev-household") {
+    localStorage.setItem(ACTIVE_HOUSEHOLD_KEY, envDefault);
+    return envDefault;
+  }
+
+  return stored;
 }
 
 export function setActiveHouseholdId(householdId: string): void {

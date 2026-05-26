@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { HoldingRecord } from "./holdings.js";
 import {
+  accountSignedValue,
+  buildAccountNameMap,
   computeUninvestedCash,
+  formatAccountDisplayName,
+  groupAccountsByOwner,
   investmentAccountCashBalance,
   isBankAccount,
   isCreditAccount,
@@ -186,6 +190,60 @@ describe("summarizeAccounts", () => {
     expect(summary.bankAccounts).toHaveLength(0);
   });
 
+  it("uses holdings-aware balances for bank cash totals", () => {
+    const accounts = [
+      account({
+        accountId: "1",
+        accountType: "depository",
+        balance: 1_000,
+        displayName: "Checking",
+      }),
+      account({
+        accountId: "2",
+        accountType: "investment",
+        balance: 50_000,
+        displayName: "Brokerage",
+      }),
+    ];
+    const holdings = new Map<string, HoldingRecord[]>([
+      [
+        "1",
+        [
+          {
+            holdingId: "h1",
+            accountId: "1",
+            symbol: "CASH",
+            quantity: 5_000,
+            marketValue: 5_000,
+          },
+        ],
+      ],
+      [
+        "2",
+        [
+          {
+            holdingId: "h2",
+            accountId: "2",
+            symbol: "VOO",
+            quantity: 10,
+            marketValue: 42_000,
+          },
+          {
+            holdingId: "h3",
+            accountId: "2",
+            symbol: "CASH",
+            quantity: 8_000,
+            marketValue: 8_000,
+          },
+        ],
+      ],
+    ]);
+
+    const summary = summarizeAccounts(accounts, holdings);
+    expect(summary.totalAssets).toBe(5_000);
+    expect(summary.totalUninvestedCash).toBe(13_000);
+  });
+
   it("uses holdings value for investment account totals when synced", () => {
     const accounts = [
       account({
@@ -218,6 +276,96 @@ describe("summarizeAccounts", () => {
     ]);
     const summary = summarizeAccounts(accounts, holdings);
     expect(summary.totalInvestments).toBe(50_000);
+  });
+});
+
+describe("groupAccountsByOwner", () => {
+  const members = [
+    {
+      id: "m1",
+      name: "Dilip Mukkapati",
+      relationship: "self" as const,
+      isActive: true,
+    },
+    {
+      id: "m2",
+      name: "Alex Spouse",
+      relationship: "spouse" as const,
+      isActive: true,
+    },
+  ];
+
+  it("groups bank and investment accounts under the same owner", () => {
+    const accounts = [
+      account({
+        accountId: "1",
+        accountType: "depository",
+        balance: 5_000,
+        displayName: "Checking",
+        ownerMemberId: "m1",
+      }),
+      account({
+        accountId: "2",
+        accountType: "investment",
+        balance: 40_000,
+        displayName: "Brokerage",
+        ownerMemberId: "m1",
+      }),
+      account({
+        accountId: "3",
+        accountType: "depository",
+        balance: 2_000,
+        displayName: "Savings",
+        ownerMemberId: "m2",
+      }),
+    ];
+
+    const sections = groupAccountsByOwner(accounts, members);
+    expect(sections).toHaveLength(2);
+    expect(sections[0]?.memberName).toBe("Dilip Mukkapati");
+    expect(sections[0]?.accounts).toHaveLength(2);
+    expect(sections[0]?.totalValue).toBe(45_000);
+    expect(sections[1]?.memberName).toBe("Alex Spouse");
+    expect(sections[1]?.totalValue).toBe(2_000);
+  });
+
+  it("returns negative signed values for credit accounts", () => {
+    expect(
+      accountSignedValue(
+        account({
+          accountId: "c1",
+          accountType: "credit",
+          balance: -1_500,
+          displayName: "Visa",
+        })
+      )
+    ).toBe(-1_500);
+  });
+});
+
+describe("formatAccountDisplayName", () => {
+  it("prefixes account names with owner initials", () => {
+    expect(formatAccountDisplayName("Checking", "DM")).toBe("DM-Checking");
+  });
+
+  it("does not double-prefix existing labels", () => {
+    expect(formatAccountDisplayName("DM-Checking", "DM")).toBe("DM-Checking");
+  });
+});
+
+describe("buildAccountNameMap", () => {
+  it("maps account ids to prefixed display names", () => {
+    const names = buildAccountNameMap(
+      [
+        account({
+          accountId: "1",
+          displayName: "Checking",
+          ownerMemberId: "m1",
+        }),
+      ],
+      [{ id: "m1", name: "Dilip Mukkapati" }]
+    );
+    expect(names.get("1")).toBe("DM-Checking");
   });
 });
 

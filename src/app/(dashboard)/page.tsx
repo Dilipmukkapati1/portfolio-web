@@ -2,17 +2,15 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import {
-  Banknote,
-  CalendarDays,
-  CircleDollarSign,
-  TrendingDown,
-  TrendingUp,
-  type LucideIcon,
-} from "lucide-react";
+import { Banknote, Gauge, TrendingUp } from "lucide-react";
 import { AllocationView } from "@/components/holdings/allocation-view";
 import { computeNetWorth, computeUninvestedCash, summarizeAccounts } from "@/lib/accounts";
 import { api } from "@/lib/api";
+import {
+  computeFreedomScore,
+  sumMemberPassiveIncome,
+} from "@/lib/freedom-score";
+import type { Member } from "@/lib/household-types";
 import {
   computeAllocations,
   DASHBOARD_CATEGORY_LABELS,
@@ -27,9 +25,7 @@ import {
   currentMonthLabel,
   earliestDashboardTransactionDate,
   monthStartDate,
-  rollingDaysStartDate,
   summarizeTransactions,
-  topSpendCategories,
   type TransactionPeriodSummary,
 } from "@/lib/transactions-summary";
 import type { AccountRecord } from "@/lib/types";
@@ -48,30 +44,8 @@ const itemVariants = {
   show: { opacity: 1, y: 0 },
 };
 
-function SpendMetric({
-  title,
-  value,
-  description,
-  icon: Icon,
-}: {
-  title: string;
-  value: string;
-  description: string;
-  icon: LucideIcon;
-}) {
-  return (
-    <div className="flex h-full flex-col justify-center rounded-lg border border-border bg-muted/20 px-4 py-5">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-sm font-medium">{title}</p>
-        <Icon className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
-      </div>
-      <p className="mt-2 text-2xl font-bold tabular-nums">{value}</p>
-      <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-        {description}
-      </p>
-    </div>
-  );
-}
+const NET_WORTH_HIGHLIGHT = 500_000;
+const UNINVESTED_CASH_HIGHLIGHT = 25_000;
 
 function todayDate(): string {
   return new Date().toISOString().slice(0, 10);
@@ -86,33 +60,20 @@ export default function DashboardPage() {
     spendByCategory: {},
     transactionCount: 0,
   });
-  const [last30DaysSummary, setLast30DaysSummary] =
-    useState<TransactionPeriodSummary>({
-      totalCredits: 0,
-      totalSpend: 0,
-      spendByCategory: {},
-      transactionCount: 0,
-    });
+  const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
 
-    async function loadTransactionSummaries(endDate: string) {
+    async function loadMonthSpendSummary(endDate: string) {
       try {
-        const [monthRes, last30Res] = await Promise.all([
-          api.getTransactionSummary({
-            startDate: monthStartDate(),
-            endDate,
-          }),
-          api.getTransactionSummary({
-            startDate: rollingDaysStartDate(30),
-            endDate,
-          }),
-        ]);
+        const monthRes = await api.getTransactionSummary({
+          startDate: monthStartDate(),
+          endDate,
+        });
         if (cancelled) return;
         setMonthSummary(monthRes);
-        setLast30DaysSummary(last30Res);
         return;
       } catch {
         // Fall back when summary endpoint or SQL is unavailable.
@@ -132,21 +93,9 @@ export default function DashboardPage() {
             endDate,
           })
         );
-        setLast30DaysSummary(
-          summarizeTransactions(transactions, {
-            startDate: rollingDaysStartDate(30),
-            endDate,
-          })
-        );
       } catch {
         if (!cancelled) {
           setMonthSummary({
-            totalCredits: 0,
-            totalSpend: 0,
-            spendByCategory: {},
-            transactionCount: 0,
-          });
-          setLast30DaysSummary({
             totalCredits: 0,
             totalSpend: 0,
             spendByCategory: {},
@@ -161,11 +110,13 @@ export default function DashboardPage() {
       const endDate = todayDate();
 
       try {
-        const [accountsRes, holdingsRes] = await Promise.all([
+        const [accountsRes, holdingsRes, membersRes] = await Promise.all([
           api.getAccounts(),
           api.getHoldings(),
+          api.listMembers().catch(() => ({ members: [] as Member[] })),
         ]);
         if (cancelled) return;
+        setMembers(membersRes.members);
         setAccounts(
           accountsRes.accounts.map((a) => ({
             accountId: String(a.accountId),
@@ -183,10 +134,11 @@ export default function DashboardPage() {
         if (!cancelled) {
           setAccounts([]);
           setHoldings([]);
+          setMembers([]);
         }
       }
 
-      await loadTransactionSummaries(endDate);
+      await loadMonthSpendSummary(endDate);
 
       if (!cancelled) setLoading(false);
     }
@@ -217,6 +169,19 @@ export default function DashboardPage() {
     [accounts, holdingsByAccount]
   );
 
+  const freedomScoreResult = useMemo(() => {
+    const memberPassiveIncomeAnnual = sumMemberPassiveIncome(members);
+    return computeFreedomScore({
+      totalInvestments: summary.totalInvestments,
+      monthlySpend: monthSummary.totalSpend,
+      memberPassiveIncomeAnnual,
+    });
+  }, [
+    members,
+    summary.totalInvestments,
+    monthSummary.totalSpend,
+  ]);
+
   const categoryAllocation = useMemo(() => {
     const grouped = groupHoldingsByCategory(holdings);
     const total = holdingsTotalValue(holdings);
@@ -236,6 +201,21 @@ export default function DashboardPage() {
     summary.investmentAccounts.length;
 
   const monthLabel = currentMonthLabel();
+
+  const freedomScoreValue =
+    loading || freedomScoreResult.score === null
+      ? "—"
+      : `${freedomScoreResult.score}/100`;
+
+  const freedomScoreDescription = loading
+    ? "Loading…"
+    : freedomScoreResult.score === null
+      ? "No spend this month — score needs expenses"
+      : freedomScoreResult.score === 0 &&
+          summary.totalInvestments === 0 &&
+          sumMemberPassiveIncome(members) === 0
+        ? "Add holdings or household income on Household"
+        : `4% withdrawal + interest/dividends vs ${monthLabel} spend`;
 
   return (
     <motion.div
@@ -266,16 +246,11 @@ export default function DashboardPage() {
                 : "Cash, investments, minus credit"
           }
           icon={TrendingUp}
-        />
-        <StatCard
-          title="Monthly net credits"
-          value={loading ? "—" : formatCurrencyWhole(monthSummary.totalCredits)}
-          description={
-            loading
-              ? "Loading…"
-              : `${monthLabel} · excludes transfers & investments`
+          valueClassName={
+            !loading && netWorth > NET_WORTH_HIGHLIGHT
+              ? "text-emerald-400"
+              : undefined
           }
-          icon={CircleDollarSign}
         />
         <StatCard
           title="Uninvested cash"
@@ -286,21 +261,31 @@ export default function DashboardPage() {
               : "Bank cash + brokerage cash"
           }
           icon={Banknote}
+          valueClassName={
+            !loading && uninvestedCash > UNINVESTED_CASH_HIGHLIGHT
+              ? "text-rose-400"
+              : undefined
+          }
+        />
+        <StatCard
+          title="Freedom Score"
+          value={freedomScoreValue}
+          description={freedomScoreDescription}
+          icon={Gauge}
         />
       </motion.div>
 
       <motion.div
-        className="grid gap-4 lg:grid-cols-2 lg:items-stretch"
         initial="hidden"
         animate="show"
         variants={rowVariants}
       >
-        <motion.div variants={itemVariants} className="h-full">
-          <Card className="flex h-full flex-col">
+        <motion.div variants={itemVariants}>
+          <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-lg">Holdings by category</CardTitle>
             </CardHeader>
-            <CardContent className="flex flex-1 flex-col justify-center">
+            <CardContent className="flex flex-col justify-center">
               {loading ? (
                 <p className="text-sm text-muted-foreground">Loading holdings…</p>
               ) : holdings.length === 0 ? (
@@ -315,38 +300,6 @@ export default function DashboardPage() {
                   formatAmount={formatCurrencyWhole}
                 />
               )}
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        <motion.div variants={itemVariants} className="h-full">
-          <Card className="flex h-full flex-col">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg">Spending</CardTitle>
-            </CardHeader>
-            <CardContent className="grid flex-1 grid-rows-2 gap-4">
-              <SpendMetric
-                title="Monthly spend"
-                value={loading ? "—" : formatCurrencyWhole(monthSummary.totalSpend)}
-                description={
-                  loading
-                    ? "Loading…"
-                    : topSpendCategories(monthSummary.spendByCategory)
-                }
-                icon={TrendingDown}
-              />
-              <SpendMetric
-                title="Last 30 days spend"
-                value={
-                  loading ? "—" : formatCurrencyWhole(last30DaysSummary.totalSpend)
-                }
-                description={
-                  loading
-                    ? "Loading…"
-                    : topSpendCategories(last30DaysSummary.spendByCategory)
-                }
-                icon={CalendarDays}
-              />
             </CardContent>
           </Card>
         </motion.div>

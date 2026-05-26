@@ -1,5 +1,8 @@
 export type AppEnv = "local" | "development" | "production";
 
+/** Dev Function App host fragment — household data (SimpleFIN) lives under dev-household. */
+export const DEV_API_HOST_FRAGMENT = "ppm-dev-func";
+
 const ENV_DEFAULTS = {
   local: {
     apiUrl: "http://localhost:7071/api",
@@ -23,6 +26,26 @@ function parseAppEnv(): AppEnv {
   return "local";
 }
 
+function resolveDefaultHouseholdId(
+  appEnv: AppEnv,
+  apiUrl: string,
+  explicit?: string
+): string {
+  const trimmed = explicit?.trim();
+  if (trimmed) {
+    // Common local misconfig: dev API + local-household shows empty/wrong accounts.
+    if (
+      trimmed === "local-household" &&
+      apiUrl.includes(DEV_API_HOST_FRAGMENT)
+    ) {
+      return "dev-household";
+    }
+    return trimmed;
+  }
+  if (apiUrl.includes(DEV_API_HOST_FRAGMENT)) return "dev-household";
+  return ENV_DEFAULTS[appEnv].defaultHouseholdId;
+}
+
 /**
  * Next.js only inlines NEXT_PUBLIC_* when accessed directly (not process.env[name]).
  */
@@ -32,9 +55,11 @@ export function getWebEnv() {
 
   const apiUrl =
     process.env.NEXT_PUBLIC_API_URL?.trim() || defaults.apiUrl;
-  const defaultHouseholdId =
-    process.env.NEXT_PUBLIC_DEFAULT_HOUSEHOLD_ID?.trim() ||
-    defaults.defaultHouseholdId;
+  const defaultHouseholdId = resolveDefaultHouseholdId(
+    appEnv,
+    apiUrl,
+    process.env.NEXT_PUBLIC_DEFAULT_HOUSEHOLD_ID
+  );
 
   return {
     appEnv,

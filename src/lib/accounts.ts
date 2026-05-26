@@ -133,7 +133,123 @@ export function summarizeAccounts(
   };
 }
 
-/** Prefix account labels with owner initials: `{initials}-accountName`. */
+export type AccountsByOwnerSection = {
+  memberId: string | null;
+  memberName: string;
+  accounts: AccountRecord[];
+  totalValue: number;
+};
+
+const MEMBER_SECTION_ORDER = ["self", "spouse", "dependent", "other"] as const;
+
+/** Signed balance for grouping: assets positive, credit negative. */
+export function accountSignedValue(
+  account: AccountRecord,
+  holdingsByAccount?: Map<string, HoldingRecord[]>
+): number {
+  if (isCreditAccount(account)) return -creditBalance(account);
+  return accountDisplayBalance(account, holdingsByAccount);
+}
+
+export function resolveAccountOwnerMemberId(
+  account: AccountRecord,
+  members: Array<{
+    id: string;
+    name: string;
+    isActive?: boolean;
+    relationship?: string;
+  }>
+): string | undefined {
+  return (
+    account.ownerMemberId ??
+    resolveOwnerMemberId(account.connectionLabel, members)
+  );
+}
+
+export function groupAccountsByOwner(
+  accounts: AccountRecord[],
+  members: Array<{
+    id: string;
+    name: string;
+    isActive?: boolean;
+    relationship?: string;
+  }>,
+  holdingsByAccount?: Map<string, HoldingRecord[]>
+): AccountsByOwnerSection[] {
+  const activeMembers = members.filter((member) => member.isActive !== false);
+  const buckets = new Map<string | null, AccountRecord[]>();
+
+  for (const account of accounts) {
+    const ownerId = resolveAccountOwnerMemberId(account, members) ?? null;
+    const bucket = buckets.get(ownerId) ?? [];
+    bucket.push(account);
+    buckets.set(ownerId, bucket);
+  }
+
+  const sortAccounts = (list: AccountRecord[]) =>
+    [...list].sort((a, b) => {
+      const creditA = isCreditAccount(a);
+      const creditB = isCreditAccount(b);
+      if (creditA !== creditB) return creditA ? 1 : -1;
+      const investA = isInvestmentAccount(a, holdingsByAccount);
+      const investB = isInvestmentAccount(b, holdingsByAccount);
+      if (investA !== investB) return investA ? 1 : -1;
+      return a.displayName.localeCompare(b.displayName);
+    });
+
+  const buildSection = (
+    memberId: string | null,
+    memberName: string,
+    list: AccountRecord[]
+  ): AccountsByOwnerSection => ({
+    memberId,
+    memberName,
+    accounts: sortAccounts(list),
+    totalValue: list.reduce(
+      (sum, account) =>
+        sum + accountSignedValue(account, holdingsByAccount),
+      0
+    ),
+  });
+
+  const sections: AccountsByOwnerSection[] = [];
+
+  const sortedMembers = [...activeMembers].sort((a, b) => {
+    const ai = MEMBER_SECTION_ORDER.indexOf(
+      a.relationship as (typeof MEMBER_SECTION_ORDER)[number]
+    );
+    const bi = MEMBER_SECTION_ORDER.indexOf(
+      b.relationship as (typeof MEMBER_SECTION_ORDER)[number]
+    );
+    const orderA = ai === -1 ? MEMBER_SECTION_ORDER.length : ai;
+    const orderB = bi === -1 ? MEMBER_SECTION_ORDER.length : bi;
+    if (orderA !== orderB) return orderA - orderB;
+    return a.name.localeCompare(b.name);
+  });
+
+  for (const member of sortedMembers) {
+    const list = buckets.get(member.id);
+    if (!list?.length) continue;
+    sections.push(buildSection(member.id, member.name, list));
+    buckets.delete(member.id);
+  }
+
+  const unassigned = buckets.get(null);
+  if (unassigned?.length) {
+    sections.push(buildSection(null, "Unassigned", unassigned));
+  }
+
+  for (const [memberId, list] of buckets) {
+    if (!list.length) continue;
+    const member = activeMembers.find((m) => m.id === memberId);
+    sections.push(
+      buildSection(memberId, member?.name ?? "Other", list)
+    );
+  }
+
+  return sections;
+}
+
 function resolveOwnerMemberId(
   connectionLabel: string | undefined,
   members: Array<{ id: string; name: string; isActive?: boolean; relationship?: string }>
@@ -190,9 +306,7 @@ export function buildAccountNameMap(
   );
   const names = new Map<string, string>();
   for (const account of accounts) {
-    const ownerId =
-      account.ownerMemberId ??
-      resolveOwnerMemberId(account.connectionLabel, members);
+    const ownerId = resolveAccountOwnerMemberId(account, members);
     const initials = ownerId ? initialsByMember.get(ownerId) : undefined;
     names.set(
       account.accountId,

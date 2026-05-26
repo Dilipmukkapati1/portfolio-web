@@ -182,21 +182,36 @@ export function getHoldingValue(holding: HoldingRecord): number {
   return holding.marketValue ?? holding.quantity * (holding.price ?? 0);
 }
 
+export function sortHoldingsByAllocation(
+  holdings: HoldingRecord[],
+  totalValue: number
+): HoldingRecord[] {
+  return [...holdings].sort((a, b) => {
+    if (isCashHolding(a)) return 1;
+    if (isCashHolding(b)) return -1;
+    const valueA = getHoldingValue(a);
+    const valueB = getHoldingValue(b);
+    if (totalValue <= 0) return valueB - valueA;
+    const pctA = valueA / totalValue;
+    const pctB = valueB / totalValue;
+    return pctB - pctA || valueB - valueA;
+  });
+}
+
 export function groupHoldingsByAccount(
-  holdings: HoldingRecord[]
+  holdings: HoldingRecord[],
+  totalValue?: number
 ): Map<string, HoldingRecord[]> {
+  const portfolioTotal =
+    totalValue ?? holdings.reduce((sum, h) => sum + getHoldingValue(h), 0);
   const map = new Map<string, HoldingRecord[]>();
   for (const holding of holdings) {
     const list = map.get(holding.accountId) ?? [];
     list.push(holding);
     map.set(holding.accountId, list);
   }
-  for (const list of map.values()) {
-    list.sort((a, b) => {
-      if (a.symbol === "CASH") return 1;
-      if (b.symbol === "CASH") return -1;
-      return a.symbol.localeCompare(b.symbol);
-    });
+  for (const [accountId, list] of map.entries()) {
+    map.set(accountId, sortHoldingsByAllocation(list, portfolioTotal));
   }
   return map;
 }
@@ -248,10 +263,18 @@ export function groupHoldingsBySymbol(
     aggregate.accounts.sort((a, b) => b.marketValue - a.marketValue);
   }
 
+  const portfolioTotal = holdings.reduce(
+    (sum, holding) => sum + getHoldingValue(holding),
+    0
+  );
+
   return [...map.values()].sort((a, b) => {
     if (a.isCash) return 1;
     if (b.isCash) return -1;
-    return b.totalMarketValue - a.totalMarketValue;
+    if (portfolioTotal <= 0) return b.totalMarketValue - a.totalMarketValue;
+    const pctA = a.totalMarketValue / portfolioTotal;
+    const pctB = b.totalMarketValue / portfolioTotal;
+    return pctB - pctA || b.totalMarketValue - a.totalMarketValue;
   });
 }
 
@@ -285,10 +308,18 @@ export function groupHoldingsByCategory(
     });
   }
 
+  const portfolioTotal = holdings.reduce(
+    (sum, holding) => sum + getHoldingValue(holding),
+    0
+  );
+
   return sections.sort((a, b) => {
     if (a.category === "cash") return 1;
     if (b.category === "cash") return -1;
-    return b.totalMarketValue - a.totalMarketValue;
+    if (portfolioTotal <= 0) return b.totalMarketValue - a.totalMarketValue;
+    const pctA = a.totalMarketValue / portfolioTotal;
+    const pctB = b.totalMarketValue / portfolioTotal;
+    return pctB - pctA || b.totalMarketValue - a.totalMarketValue;
   });
 }
 

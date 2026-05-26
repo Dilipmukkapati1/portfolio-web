@@ -17,7 +17,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { buildAccountNameMap } from "@/lib/accounts";
 import { api } from "@/lib/api";
+import type { AccountRecord } from "@/lib/types";
+import type { Member } from "@/lib/household-types";
 import {
   computeAllocations,
   getHoldingValue,
@@ -38,9 +41,16 @@ type GroupMode = "account" | "symbol" | "category";
 type ViewMode = "holdings" | "allocation";
 type ChartStyle = "pie" | "table";
 
-function HoldingRow({ holding }: { holding: HoldingRecord }) {
+function HoldingRow({
+  holding,
+  totalValue,
+}: {
+  holding: HoldingRecord;
+  totalValue: number;
+}) {
   const value = getHoldingValue(holding);
   const category = resolveHoldingCategory(holding);
+  const percent = totalValue > 0 ? (value / totalValue) * 100 : 0;
   const label = isCashHolding(holding)
     ? "Cash"
     : holding.description?.trim() || holding.symbol;
@@ -79,6 +89,9 @@ function HoldingRow({ holding }: { holding: HoldingRecord }) {
       </TableCell>
       <TableCell className="text-right tabular-nums font-medium">
         {formatCurrency(value)}
+      </TableCell>
+      <TableCell className="text-right tabular-nums text-muted-foreground">
+        {percent.toFixed(1)}%
       </TableCell>
     </TableRow>
   );
@@ -190,9 +203,8 @@ function SymbolAggregateRow({
 
 export default function HoldingsPage() {
   const [holdings, setHoldings] = useState<HoldingRecord[]>([]);
-  const [accountNames, setAccountNames] = useState<Map<string, string>>(
-    new Map()
-  );
+  const [accounts, setAccounts] = useState<AccountRecord[]>([]);
+  const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [groupMode, setGroupMode] = useState<GroupMode>("category");
   const [viewMode, setViewMode] = useState<ViewMode>("allocation");
@@ -202,28 +214,46 @@ export default function HoldingsPage() {
   );
 
   useEffect(() => {
-    Promise.all([api.getHoldings(), api.getAccounts()])
-      .then(([holdingsRes, accountsRes]) => {
+    Promise.all([api.getHoldings(), api.getAccounts(), api.listMembers()])
+      .then(([holdingsRes, accountsRes, membersRes]) => {
         setHoldings(parseHoldings(holdingsRes.holdings));
-        const names = new Map<string, string>();
-        for (const a of accountsRes.accounts) {
-          names.set(
-            String(a.accountId),
-            String(a.displayName ?? a.accountId)
-          );
-        }
-        setAccountNames(names);
+        setAccounts(
+          accountsRes.accounts.map((a) => ({
+            accountId: String(a.accountId),
+            displayName: String(a.displayName),
+            institutionName: a.institutionName
+              ? String(a.institutionName)
+              : undefined,
+            source: String(a.source),
+            balance: Number(a.balance) || 0,
+            accountType: a.accountType ? String(a.accountType) : undefined,
+            ownerMemberId: a.ownerMemberId
+              ? String(a.ownerMemberId)
+              : undefined,
+            connectionLabel: a.connectionLabel
+              ? String(a.connectionLabel)
+              : undefined,
+          }))
+        );
+        setMembers(membersRes.members);
       })
       .catch(() => {
         setHoldings([]);
-        setAccountNames(new Map());
+        setAccounts([]);
+        setMembers([]);
       })
       .finally(() => setLoading(false));
   }, []);
 
+  const accountNames = useMemo(
+    () => buildAccountNameMap(accounts, members),
+    [accounts, members]
+  );
+
+  const totalValue = useMemo(() => holdingsTotalValue(holdings), [holdings]);
   const groupedByAccount = useMemo(
-    () => groupHoldingsByAccount(holdings),
-    [holdings]
+    () => groupHoldingsByAccount(holdings, totalValue),
+    [holdings, totalValue]
   );
   const groupedBySymbol = useMemo(
     () => groupHoldingsBySymbol(holdings),
@@ -233,7 +263,6 @@ export default function HoldingsPage() {
     () => groupHoldingsByCategory(holdings),
     [holdings]
   );
-  const totalValue = useMemo(() => holdingsTotalValue(holdings), [holdings]);
 
   const accountSections = useMemo(() => {
     return [...groupedByAccount.entries()].sort((a, b) => {
@@ -475,11 +504,16 @@ export default function HoldingsPage() {
                         <TableHead className="text-right">Qty</TableHead>
                         <TableHead className="text-right">Price</TableHead>
                         <TableHead className="text-right">Value</TableHead>
+                        <TableHead className="text-right">% of portfolio</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {accountHoldings.map((h) => (
-                        <HoldingRow key={h.holdingId} holding={h} />
+                        <HoldingRow
+                          key={h.holdingId}
+                          holding={h}
+                          totalValue={totalValue}
+                        />
                       ))}
                     </TableBody>
                   </Table>

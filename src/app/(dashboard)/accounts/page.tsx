@@ -163,102 +163,6 @@ function AccountTile({
   );
 }
 
-function SummaryAccountCard({
-  account,
-  displayName,
-  holdingsByAccount,
-  accent,
-}: {
-  account: AccountRecord;
-  displayName: string;
-  holdingsByAccount: Map<string, HoldingRecord[]>;
-  accent: "emerald" | "violet";
-}) {
-  const investment = isInvestmentAccount(account, holdingsByAccount);
-  const balance = accountDisplayBalance(account, holdingsByAccount);
-  const Icon = investment ? TrendingUp : balance > 10000 ? Landmark : Wallet;
-  const sublabel = [account.institutionName, account.source]
-    .filter(Boolean)
-    .join(" · ");
-
-  return (
-    <motion.div variants={itemVariants}>
-      <SummaryCard
-        label={displayName}
-        value={formatCurrency(Math.abs(balance))}
-        sublabel={sublabel || "Linked account"}
-        icon={Icon}
-        accent={accent}
-      />
-    </motion.div>
-  );
-}
-
-function AccountSection({
-  title,
-  accounts,
-  accountNames,
-  holdingsByAccount,
-  emptyMessage,
-  variant = "tile",
-  accent,
-}: {
-  title: string;
-  accounts: AccountRecord[];
-  accountNames: Map<string, string>;
-  holdingsByAccount: Map<string, HoldingRecord[]>;
-  emptyMessage: string;
-  variant?: "tile" | "summary";
-  accent?: "emerald" | "violet";
-}) {
-  if (accounts.length === 0) {
-    return null;
-  }
-
-  const gridClass =
-    variant === "summary"
-      ? "grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
-      : "grid gap-2 sm:grid-cols-2 xl:grid-cols-3";
-
-  return (
-    <div className="space-y-2">
-      <h3 className="text-sm font-medium text-muted-foreground">{title}</h3>
-      <motion.div
-        className={gridClass}
-        variants={containerVariants}
-        initial="hidden"
-        animate="show"
-      >
-        {accounts.map((account) => {
-          const displayName =
-            accountNames.get(account.accountId) ?? account.displayName;
-
-          if (variant === "summary" && accent) {
-            return (
-              <SummaryAccountCard
-                key={account.accountId}
-                account={account}
-                displayName={displayName}
-                holdingsByAccount={holdingsByAccount}
-                accent={accent}
-              />
-            );
-          }
-
-          return (
-            <AccountTile
-              key={account.accountId}
-              account={account}
-              displayName={displayName}
-              holdingsByAccount={holdingsByAccount}
-            />
-          );
-        })}
-      </motion.div>
-    </div>
-  );
-}
-
 export default function AccountsPage() {
   const [accounts, setAccounts] = useState<AccountRecord[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
@@ -311,6 +215,18 @@ export default function AccountsPage() {
     [accounts, members]
   );
 
+  const sortedAccounts = useMemo(
+    () =>
+      [...accounts].sort((a, b) =>
+        (accountNames.get(a.accountId) ?? a.displayName).localeCompare(
+          accountNames.get(b.accountId) ?? b.displayName,
+          undefined,
+          { sensitivity: "base" }
+        )
+      ),
+    [accounts, accountNames]
+  );
+
   const hasAnyAccounts =
     summary.bankAccounts.length +
       summary.creditAccounts.length +
@@ -326,30 +242,16 @@ export default function AccountsPage() {
     >
       <PageHeader
         title="Accounts"
-        description="Bank, credit, and investment accounts from linked institutions. Position detail is on Holdings."
+        description="Linked bank, credit, and investment accounts. Position detail is on Holdings."
       />
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <SummaryCard
-          label="Bank cash"
-          value={formatCurrency(summary.totalAssets)}
-          sublabel={`${summary.bankAccounts.length} account${summary.bankAccounts.length === 1 ? "" : "s"}`}
-          icon={Wallet}
-          accent="emerald"
-        />
+      <div className="grid gap-3 sm:grid-cols-2">
         <SummaryCard
           label="Investments"
           value={formatCurrency(summary.totalInvestments)}
           sublabel={`${summary.investmentAccounts.length} account${summary.investmentAccounts.length === 1 ? "" : "s"}`}
           icon={TrendingUp}
           accent="violet"
-        />
-        <SummaryCard
-          label="Total credit"
-          value={formatCurrency(summary.totalCredit)}
-          sublabel={`${summary.creditAccounts.length} account${summary.creditAccounts.length === 1 ? "" : "s"}`}
-          icon={CreditCard}
-          accent="rose"
         />
         <SummaryCard
           label="Uninvested cash"
@@ -367,38 +269,26 @@ export default function AccountsPage() {
           No accounts linked yet. Connect SimpleFIN from Connections, then sync.
         </p>
       ) : (
-        <motion.div
-          className="space-y-6"
-          variants={containerVariants}
-          initial="hidden"
-          animate="show"
-        >
-          <AccountSection
-            title="Bank accounts"
-            accounts={summary.bankAccounts}
-            accountNames={accountNames}
-            holdingsByAccount={holdingsByAccount}
-            emptyMessage="No bank accounts"
-            variant="summary"
-            accent="emerald"
-          />
-          <AccountSection
-            title="Investment accounts"
-            accounts={summary.investmentAccounts}
-            accountNames={accountNames}
-            holdingsByAccount={holdingsByAccount}
-            emptyMessage="No investment accounts"
-            variant="summary"
-            accent="violet"
-          />
-          <AccountSection
-            title="Credit & loans"
-            accounts={summary.creditAccounts}
-            accountNames={accountNames}
-            holdingsByAccount={holdingsByAccount}
-            emptyMessage="No credit accounts"
-          />
-        </motion.div>
+        <div className="space-y-3">
+          <h2 className="text-sm font-medium">Accounts</h2>
+          <motion.div
+            className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3"
+            variants={containerVariants}
+            initial="hidden"
+            animate="show"
+          >
+            {sortedAccounts.map((account) => (
+              <AccountTile
+                key={account.accountId}
+                account={account}
+                displayName={
+                  accountNames.get(account.accountId) ?? account.displayName
+                }
+                holdingsByAccount={holdingsByAccount}
+              />
+            ))}
+          </motion.div>
+        </div>
       )}
     </motion.div>
   );

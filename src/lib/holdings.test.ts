@@ -3,10 +3,12 @@ import {
   categorizeInvestment,
   computeAllocations,
   getHoldingValue,
+  groupHoldingsByAccount,
   groupHoldingsByCategory,
   groupHoldingsBySymbol,
   investmentCategoryLabel,
   isCashHolding,
+  sortHoldingsByAllocation,
   type HoldingRecord,
 } from "./holdings.js";
 
@@ -86,6 +88,58 @@ describe("groupHoldingsBySymbol", () => {
     expect(grouped.map((g) => g.symbol)).toEqual(["MSFT", "CASH"]);
     expect(grouped[1].totalMarketValue).toBe(700);
     expect(grouped[1].accounts).toHaveLength(2);
+  });
+});
+
+describe("sortHoldingsByAllocation", () => {
+  it("sorts by portfolio percent descending with cash last", () => {
+    const holdings = [
+      holding({
+        holdingId: "1-ZZZ",
+        accountId: "1",
+        symbol: "ZZZ",
+        marketValue: 100,
+      }),
+      holding({
+        holdingId: "1-AAA",
+        accountId: "1",
+        symbol: "AAA",
+        marketValue: 900,
+      }),
+      holding({
+        holdingId: "1-CASH",
+        accountId: "1",
+        symbol: "CASH",
+        marketValue: 500,
+      }),
+    ];
+
+    const sorted = sortHoldingsByAllocation(holdings, 1500);
+
+    expect(sorted.map((h) => h.symbol)).toEqual(["AAA", "ZZZ", "CASH"]);
+  });
+});
+
+describe("groupHoldingsByAccount", () => {
+  it("sorts each account ledger by portfolio allocation descending", () => {
+    const holdings = [
+      holding({
+        holdingId: "1-B",
+        accountId: "1",
+        symbol: "B",
+        marketValue: 200,
+      }),
+      holding({
+        holdingId: "1-A",
+        accountId: "1",
+        symbol: "A",
+        marketValue: 800,
+      }),
+    ];
+
+    const grouped = groupHoldingsByAccount(holdings, 1000);
+
+    expect(grouped.get("1")?.map((h) => h.symbol)).toEqual(["A", "B"]);
   });
 });
 

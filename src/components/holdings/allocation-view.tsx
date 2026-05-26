@@ -135,7 +135,7 @@ function AllocationTable({
   formatAmount?: (amount: number) => string;
 }) {
   const sorted = useMemo(
-    () => [...slices].sort((a, b) => b.value - a.value),
+    () => [...slices].sort((a, b) => b.percent - a.percent || b.value - a.value),
     [slices]
   );
 

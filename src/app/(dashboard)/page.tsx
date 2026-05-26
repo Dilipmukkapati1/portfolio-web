@@ -77,7 +77,9 @@ export default function DashboardPage() {
   const categoryAllocation = useMemo(() => {
     return (analytics?.allocation ?? []).map((slice) => ({
       ...slice,
-      value: 0,
+      // Dashboard analytics is percent-only; use percent as the chart value so
+      // AllocationView can render slices without requiring hidden dollar data.
+      value: slice.percent,
     }));
   }, [analytics]);
 
@@ -185,7 +187,7 @@ export default function DashboardPage() {
                   chartStyle="pie"
                   className="border-0 bg-transparent p-0"
                   formatAmount={formatCurrencyWhole}
-                  hideAmounts={!unlocked}
+                  hideAmounts
                 />
               )}
             </CardContent>

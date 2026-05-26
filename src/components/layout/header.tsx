@@ -8,9 +8,10 @@ import { PrivacyToggle } from "@/components/PrivacyProvider";
 interface HeaderProps {
   onMenuClick?: () => void;
   title?: string;
+  showPrivacy?: boolean;
 }
 
-export function Header({ onMenuClick, title }: HeaderProps) {
+export function Header({ onMenuClick, title, showPrivacy = true }: HeaderProps) {
   return (
     <header className="flex h-14 shrink-0 items-center gap-3 border-b border-border px-4 lg:hidden">
       <Button
@@ -24,7 +25,7 @@ export function Header({ onMenuClick, title }: HeaderProps) {
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-semibold">{title ?? "Portfolio"}</p>
       </div>
-      <PrivacyToggle compact />
+      {showPrivacy && <PrivacyToggle compact />}
       <UserNav compact />
     </header>
   );

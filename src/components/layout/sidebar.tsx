@@ -74,7 +74,7 @@ export function Sidebar({ collapsed = false, onToggle, admin }: SidebarProps) {
       </nav>
 
       <div className="space-y-2 border-t border-border p-2">
-        {!collapsed && <PrivacyToggle />}
+        {!admin && !collapsed && <PrivacyToggle />}
         {!collapsed && <UserNav />}
         {onToggle && (
           <Button

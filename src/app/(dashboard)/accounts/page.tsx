@@ -12,13 +12,14 @@ import {
 } from "@/lib/accounts";
 import type { Member } from "@/lib/household-types";
 import { api } from "@/lib/api";
+import { usePrivacy } from "@/components/PrivacyProvider";
 import {
   groupHoldingsByAccount,
   parseHoldings,
   type HoldingRecord,
 } from "@/lib/holdings";
 import type { AccountRecord } from "@/lib/types";
-import { cn, formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency, formatPercent } from "@/lib/utils";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -80,10 +81,12 @@ function AccountTile({
   account,
   displayName,
   holdingsByAccount,
+  hidden,
 }: {
   account: AccountRecord;
   displayName: string;
   holdingsByAccount: Map<string, HoldingRecord[]>;
+  hidden: boolean;
 }) {
   const credit = isCreditAccount(account);
   const investment = isInvestmentAccount(account, holdingsByAccount);
@@ -154,8 +157,9 @@ function AccountTile({
               valueClass
             )}
           >
-            {credit ? "−" : ""}
-            {formatCurrency(Math.abs(balance))}
+            {hidden
+              ? formatPercent(account.percentOfNetWorth)
+              : `${credit ? "−" : ""}${formatCurrency(Math.abs(balance))}`}
           </p>
         </CardContent>
       </Card>
@@ -164,6 +168,7 @@ function AccountTile({
 }
 
 export default function AccountsPage() {
+  const { isUnlocked, privacyVersion } = usePrivacy();
   const [accounts, setAccounts] = useState<AccountRecord[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
   const [holdingsByAccount, setHoldingsByAccount] = useState(
@@ -172,6 +177,7 @@ export default function AccountsPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    setLoading(true);
     Promise.all([api.getAccounts(), api.getHoldings(), api.listMembers()])
       .then(([accountsRes, holdingsRes, membersRes]) => {
         setAccounts(
@@ -182,7 +188,9 @@ export default function AccountsPage() {
               ? String(a.institutionName)
               : undefined,
             source: String(a.source),
-            balance: Number(a.balance) || 0,
+            balance: a.balance != null ? Number(a.balance) : undefined,
+            percentOfNetWorth:
+              a.percentOfNetWorth != null ? Number(a.percentOfNetWorth) : undefined,
             accountType: a.accountType ? String(a.accountType) : undefined,
             ownerMemberId: a.ownerMemberId
               ? String(a.ownerMemberId)
@@ -192,7 +200,7 @@ export default function AccountsPage() {
               : undefined,
           }))
         );
-        setMembers(membersRes.members);
+        setMembers((membersRes.members as Member[]) ?? []);
         setHoldingsByAccount(
           groupHoldingsByAccount(parseHoldings(holdingsRes.holdings))
         );
@@ -203,7 +211,7 @@ export default function AccountsPage() {
         setHoldingsByAccount(new Map());
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [privacyVersion]);
 
   const summary = useMemo(
     () => summarizeAccounts(accounts, holdingsByAccount),
@@ -248,14 +256,22 @@ export default function AccountsPage() {
       <div className="grid gap-3 sm:grid-cols-2">
         <SummaryCard
           label="Investments"
-          value={formatCurrency(summary.totalInvestments)}
+          value={
+            isUnlocked
+              ? formatCurrency(summary.totalInvestments)
+              : "Unlock to view"
+          }
           sublabel={`${summary.investmentAccounts.length} account${summary.investmentAccounts.length === 1 ? "" : "s"}`}
           icon={TrendingUp}
           accent="violet"
         />
         <SummaryCard
           label="Uninvested cash"
-          value={formatCurrency(summary.totalUninvestedCash)}
+          value={
+            isUnlocked
+              ? formatCurrency(summary.totalUninvestedCash)
+              : "Unlock to view"
+          }
           sublabel="Bank + brokerage cash"
           icon={Landmark}
           accent="blue"
@@ -285,6 +301,7 @@ export default function AccountsPage() {
                   accountNames.get(account.accountId) ?? account.displayName
                 }
                 holdingsByAccount={holdingsByAccount}
+                hidden={!isUnlocked}
               />
             ))}
           </motion.div>

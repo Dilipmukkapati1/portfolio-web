@@ -4,7 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { api } from "@/lib/api";
 import { useHousehold } from "@/components/HouseholdProvider";
-import { formatCurrency } from "@/lib/utils";
+import { usePrivacy } from "@/components/PrivacyProvider";
+import { formatCurrency, formatPercent } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/shared/page-header";
@@ -13,6 +14,7 @@ import type { ContributionType } from "@/lib/household-types";
 
 export default function TaxPage() {
   const { household, loading: householdLoading } = useHousehold();
+  const { isUnlocked, privacyVersion, showUnlockDialog } = usePrivacy();
   const [taxProfile, setTaxProfile] = useState<TaxProfile | null>(null);
   const [strategies, setStrategies] = useState<Array<Record<string, unknown>>>([]);
   const [loading, setLoading] = useState(false);
@@ -36,7 +38,7 @@ export default function TaxPage() {
     } finally {
       setLoading(false);
     }
-  }, [household, taxYear]);
+  }, [household, taxYear, privacyVersion]);
 
   useEffect(() => {
     if (household && !householdLoading) {
@@ -46,6 +48,10 @@ export default function TaxPage() {
 
   async function runEstimate() {
     if (!household) return;
+    if (!isUnlocked) {
+      showUnlockDialog();
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -101,26 +107,34 @@ export default function TaxPage() {
             disabled={loading || !household}
             className="min-h-11 w-full sm:w-auto"
           >
-            {loading ? "Calculating…" : "Recalculate from members"}
+            {loading
+              ? "Calculating…"
+              : isUnlocked
+                ? "Recalculate from members"
+                : "Unlock to recalculate"}
           </Button>
 
           {estimate ? (
             <dl className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm mt-2">
-              <dt className="text-muted-foreground">AGI</dt>
-              <dd>{formatCurrency(Number(estimate.adjustedGrossIncome ?? 0))}</dd>
-              <dt className="text-muted-foreground">Taxable income</dt>
-              <dd>{formatCurrency(Number(estimate.taxableIncome ?? 0))}</dd>
-              <dt className="text-muted-foreground">Federal tax</dt>
-              <dd className="font-semibold">
-                {formatCurrency(Number(estimate.federalTax ?? 0))}
-              </dd>
+              {isUnlocked && (
+                <>
+                  <dt className="text-muted-foreground">AGI</dt>
+                  <dd>{formatCurrency(Number(estimate.adjustedGrossIncome ?? 0))}</dd>
+                  <dt className="text-muted-foreground">Taxable income</dt>
+                  <dd>{formatCurrency(Number(estimate.taxableIncome ?? 0))}</dd>
+                  <dt className="text-muted-foreground">Federal tax</dt>
+                  <dd className="font-semibold">
+                    {formatCurrency(Number(estimate.federalTax ?? 0))}
+                  </dd>
+                </>
+              )}
               <dt className="text-muted-foreground">Effective rate</dt>
               <dd>
-                {((Number(estimate.effectiveRate ?? 0)) * 100).toFixed(2)}%
+                {formatPercent(Number(estimate.effectiveRate ?? 0) * 100, 2)}
               </dd>
               <dt className="text-muted-foreground">Marginal rate</dt>
               <dd>
-                {((Number(estimate.marginalRate ?? 0)) * 100).toFixed(0)}%
+                {formatPercent(Number(estimate.marginalRate ?? 0) * 100, 0)}
               </dd>
             </dl>
           ) : (
@@ -148,8 +162,16 @@ export default function TaxPage() {
                       lim.type}
                   </span>
                   <span className="text-muted-foreground">
-                    {formatCurrency(lim.contributed)} / {formatCurrency(lim.limit)}{" "}
-                    ({formatCurrency(lim.remaining)} left)
+                    {isUnlocked
+                      ? `${formatCurrency(lim.contributed)} / ${formatCurrency(
+                          lim.limit
+                        )} (${formatCurrency(lim.remaining)} left)`
+                      : `Used ${formatPercent(
+                          Number(
+                            (lim as { contributionUsedPercent?: number })
+                              .contributionUsedPercent
+                          )
+                        )}`}
                   </span>
                 </li>
               ))}

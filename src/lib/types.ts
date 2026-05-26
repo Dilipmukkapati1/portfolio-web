@@ -58,6 +58,7 @@ export interface AccountRecord {
   institutionName?: string;
   source: string;
   balance?: number;
+  percentOfNetWorth?: number;
   accountType?: string;
   ownerMemberId?: string;
   connectionLabel?: string;

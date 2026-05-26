@@ -3,6 +3,7 @@
 import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { UserNav } from "@/components/shared/user-nav";
+import { PrivacyToggle } from "@/components/PrivacyProvider";
 
 interface HeaderProps {
   onMenuClick?: () => void;
@@ -23,6 +24,7 @@ export function Header({ onMenuClick, title }: HeaderProps) {
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-semibold">{title ?? "Portfolio"}</p>
       </div>
+      <PrivacyToggle compact />
       <UserNav compact />
     </header>
   );

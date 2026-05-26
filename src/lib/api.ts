@@ -6,6 +6,32 @@ function getApiUrl(): string {
   return getWebEnv().apiUrl;
 }
 
+let privacyToken: string | null = null;
+let privacyUnauthorizedHandler: (() => void) | null = null;
+
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    public readonly status: number,
+    public readonly code?: string
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
+function unwrapEnvelope<T>(value: T | { household?: T }): T {
+  if (
+    value &&
+    typeof value === "object" &&
+    "household" in value &&
+    (value as { household?: T }).household
+  ) {
+    return (value as { household: T }).household;
+  }
+  return value as T;
+}
+
 async function apiFetch<T>(
   path: string,
   options: RequestInit & { timeoutMs?: number } = {}
@@ -15,14 +41,17 @@ async function apiFetch<T>(
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      "x-household-id": getActiveHouseholdId(),
+      ...(fetchOptions.headers as Record<string, string> | undefined),
+    };
+    if (privacyToken) headers["x-privacy-token"] = privacyToken;
+
     const res = await fetch(`${getApiUrl()}${path}`, {
       ...fetchOptions,
       signal: controller.signal,
-      headers: {
-        "Content-Type": "application/json",
-        "x-household-id": getActiveHouseholdId(),
-        ...fetchOptions.headers,
-      },
+      headers,
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({ error: res.statusText }));
@@ -30,20 +59,30 @@ async function apiFetch<T>(
         (err as { error?: string }).error?.trim() ||
         res.statusText ||
         "API error";
-      throw new Error(message);
+      const apiError = new ApiError(message, res.status);
+      if ((res.status === 401 || res.status === 403) && privacyToken) {
+        privacyUnauthorizedHandler?.();
+      }
+      throw apiError;
     }
     return res.json() as Promise<T>;
   } catch (e) {
     if (e instanceof Error && e.name === "AbortError") {
-      throw new Error(
+      throw new ApiError(
         "Request timed out. Is the portfolio API running at " + getApiUrl() + "?"
+        ,
+        0,
+        "timeout"
       );
     }
     if (e instanceof TypeError) {
-      throw new Error(
+      throw new ApiError(
         "Cannot reach the API at " +
           getApiUrl() +
           ". Start portfolio-api locally (port 7071) or set NEXT_PUBLIC_API_URL."
+        ,
+        0,
+        "network"
       );
     }
     throw e;
@@ -53,12 +92,28 @@ async function apiFetch<T>(
 }
 
 export const api = {
+  setPrivacyToken: (token: string | null) => {
+    privacyToken = token;
+  },
+  setPrivacyUnauthorizedHandler: (handler: (() => void) | null) => {
+    privacyUnauthorizedHandler = handler;
+  },
+  unlockPrivacy: (password: string) =>
+    apiFetch<{ privacyToken: string; expiresAt: string }>("/privacy/unlock", {
+      method: "POST",
+      body: JSON.stringify({ password }),
+    }),
+  lockPrivacy: () => {
+    privacyToken = null;
+  },
   health: () => apiFetch<{ status: string }>("/health"),
   listHouseholds: () =>
     apiFetch<{ households: Household[] }>("/households"),
-  getHousehold: () => apiFetch<Household>("/household"),
+  getHousehold: async () => unwrapEnvelope(await apiFetch<Household | { household: Household }>("/household")),
   getHouseholdById: (householdId: string) =>
-    apiFetch<Household>(`/households/${encodeURIComponent(householdId)}`),
+    apiFetch<Household | { household: Household }>(
+      `/households/${encodeURIComponent(householdId)}`
+    ).then(unwrapEnvelope),
   updateHousehold: (body: unknown) =>
     apiFetch<Household>("/household", {
       method: "PUT",
@@ -88,10 +143,16 @@ export const api = {
       body: JSON.stringify({ householdIds }),
     }),
   getAccounts: () =>
-    apiFetch<{ accounts: Array<Record<string, unknown>> }>("/accounts"),
+    apiFetch<{
+      privacyMode?: "locked" | "unlocked";
+      valuesUnlocked?: boolean;
+      accounts: Array<Record<string, unknown>>;
+    }>("/accounts"),
   getTransactions: (params?: Record<string, string>) => {
     const q = new URLSearchParams(params).toString();
     return apiFetch<{
+      privacyMode?: "locked" | "unlocked";
+      valuesUnlocked?: boolean;
       transactions: Array<Record<string, unknown>>;
       hasMore: boolean;
       nextCursor?: string;
@@ -100,15 +161,28 @@ export const api = {
   getTransactionSummary: (params: Record<string, string>) => {
     const q = new URLSearchParams(params).toString();
     return apiFetch<{
-      totalCredits: number;
-      totalSpend: number;
-      spendByCategory: Record<string, number>;
+      privacyMode?: "locked" | "unlocked";
+      valuesUnlocked?: boolean;
+      totalCredits?: number;
+      totalSpend?: number;
+      spendByCategory?: Record<string, number>;
+      spendByCategoryPercent?: Record<string, number>;
       transactionCount: number;
     }>(`/transactions/summary?${q}`);
   },
   getHoldings: () =>
-    apiFetch<{ holdings: Array<Record<string, unknown>> }>("/holdings"),
+    apiFetch<{
+      privacyMode?: "locked" | "unlocked";
+      valuesUnlocked?: boolean;
+      holdings: Array<Record<string, unknown>>;
+    }>("/holdings"),
   getNetWorth: () => apiFetch<Record<string, unknown>>("/networth"),
+  getDashboardAnalytics: (params?: Record<string, string>) => {
+    const q = new URLSearchParams(params).toString();
+    return apiFetch<Record<string, unknown>>(
+      `/analytics/dashboard${q ? `?${q}` : ""}`
+    );
+  },
   getIntegrationsStatus: () =>
     apiFetch<{
       simplefin: {
@@ -167,10 +241,14 @@ export const api = {
       { method: "PUT", body: JSON.stringify({ members }) }
     ),
   getTaxProfile: (taxYear: number, householdId?: string) =>
-    apiFetch<TaxProfile>(
+    apiFetch<TaxProfile | { taxProfile: TaxProfile }>(
       householdId
         ? `/households/${encodeURIComponent(householdId)}/tax-profiles/${taxYear}`
         : `/tax-profiles/${taxYear}`
+    ).then((value) =>
+      value && typeof value === "object" && "taxProfile" in value
+        ? (value as { taxProfile: TaxProfile }).taxProfile
+        : (value as TaxProfile)
     ),
   updateTaxProfile: (
     taxYear: number,

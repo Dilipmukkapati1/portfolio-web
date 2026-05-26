@@ -8,6 +8,7 @@ import { NAV_ITEMS } from "@/lib/constants";
 import { getNavIcon } from "@/lib/nav-icons";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { PrivacyToggle } from "@/components/PrivacyProvider";
 
 interface MobileNavProps {
   open: boolean;
@@ -69,6 +70,9 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
                 );
               })}
             </nav>
+            <div className="border-t border-border p-3">
+              <PrivacyToggle />
+            </div>
           </motion.aside>
         </>
       )}

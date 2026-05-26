@@ -24,6 +24,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { api } from "@/lib/api";
+import { usePrivacy } from "@/components/PrivacyProvider";
 import {
   buildTransactionCursor,
   parseTransactions,
@@ -31,7 +32,7 @@ import {
   type TransactionRecord,
 } from "@/lib/transactions";
 import { rollingDaysStartDate } from "@/lib/transactions-summary";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatCurrency, formatDate, formatPercent } from "@/lib/utils";
 
 const PAGE_SIZE = 8;
 const SUMMARY_LOOKBACK_DAYS = 90;
@@ -41,6 +42,7 @@ type PageSummary = {
   totalCredits: number;
   totalDebits: number;
   transactionCount: number;
+  spendByCategoryPercent?: Record<string, number>;
 };
 
 type TransactionPage = {
@@ -71,6 +73,7 @@ function resolvePagination(
 }
 
 export default function TransactionsPage() {
+  const { isUnlocked, privacyVersion } = usePrivacy();
   const [summary, setSummary] = useState<PageSummary>({
     netSum: 0,
     totalCredits: 0,
@@ -93,12 +96,25 @@ export default function TransactionsPage() {
     const startDate = rollingDaysStartDate(SUMMARY_LOOKBACK_DAYS);
     try {
       const res = await api.getTransactionSummary({ startDate, endDate });
-      setSummary({
-        netSum: res.totalCredits - res.totalSpend,
-        totalCredits: res.totalCredits,
-        totalDebits: res.totalSpend,
-        transactionCount: res.transactionCount,
-      });
+      if (res.valuesUnlocked) {
+        const totalCredits = res.totalCredits ?? 0;
+        const totalSpend = res.totalSpend ?? 0;
+        setSummary({
+          netSum: totalCredits - totalSpend,
+          totalCredits,
+          totalDebits: totalSpend,
+          transactionCount: res.transactionCount,
+          spendByCategoryPercent: res.spendByCategoryPercent,
+        });
+      } else {
+        setSummary({
+          netSum: 0,
+          totalCredits: 0,
+          totalDebits: 0,
+          transactionCount: res.transactionCount,
+          spendByCategoryPercent: res.spendByCategoryPercent,
+        });
+      }
     } catch {
       setSummary({
         netSum: 0,
@@ -151,9 +167,12 @@ export default function TransactionsPage() {
   }, [fetchPage]);
 
   useEffect(() => {
+    setPages([]);
+    pageCursorsRef.current = [undefined];
+    setPageIndex(0);
     void loadSummary();
     void loadInitial();
-  }, [loadSummary, loadInitial]);
+  }, [loadSummary, loadInitial, privacyVersion]);
 
   const goToPage = async (targetIndex: number) => {
     if (targetIndex < 0 || pageLoading) return;
@@ -231,24 +250,37 @@ export default function TransactionsPage() {
             animate={{ opacity: 1, y: 0 }}
             className="grid gap-4 sm:grid-cols-3"
           >
-            <StatCard
-              title="Net sum"
-              value={formatCurrency(summary.netSum)}
-              description={`Last ${SUMMARY_LOOKBACK_DAYS} days · ${summary.transactionCount} transactions`}
-              icon={Scale}
-            />
-            <StatCard
-              title="Total credits"
-              value={formatCurrency(summary.totalCredits)}
-              description="Money in"
-              icon={ArrowDownLeft}
-            />
-            <StatCard
-              title="Total debits"
-              value={formatCurrency(summary.totalDebits)}
-              description="Money out"
-              icon={ArrowUpRight}
-            />
+            {isUnlocked ? (
+              <>
+                <StatCard
+                  title="Net sum"
+                  value={formatCurrency(summary.netSum)}
+                  description={`Last ${SUMMARY_LOOKBACK_DAYS} days · ${summary.transactionCount} transactions`}
+                  icon={Scale}
+                />
+                <StatCard
+                  title="Total credits"
+                  value={formatCurrency(summary.totalCredits)}
+                  description="Money in"
+                  icon={ArrowDownLeft}
+                />
+                <StatCard
+                  title="Total debits"
+                  value={formatCurrency(summary.totalDebits)}
+                  description="Money out"
+                  icon={ArrowUpRight}
+                />
+              </>
+            ) : (
+              <StatCard
+                title="Activity"
+                value={`${summary.transactionCount}`}
+                description={`Transactions · top category ${formatPercent(
+                  Math.max(0, ...Object.values(summary.spendByCategoryPercent ?? {}))
+                )}`}
+                icon={Scale}
+              />
+            )}
           </motion.div>
 
           <motion.div
@@ -268,7 +300,7 @@ export default function TransactionsPage() {
                   <TableHead>Date</TableHead>
                   <TableHead>Description</TableHead>
                   <TableHead>Category</TableHead>
-                  <TableHead className="text-right">Amount</TableHead>
+                  {isUnlocked && <TableHead className="text-right">Amount</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -286,13 +318,15 @@ export default function TransactionsPage() {
                         {transactionCategoryLabel(t.category)}
                       </Badge>
                     </TableCell>
-                    <TableCell
-                      className={`text-right font-medium tabular-nums ${
-                        t.amount >= 0 ? "text-emerald-400" : "text-rose-400"
-                      }`}
-                    >
-                      {formatCurrency(t.amount)}
-                    </TableCell>
+                    {isUnlocked && (
+                      <TableCell
+                        className={`text-right font-medium tabular-nums ${
+                          (t.amount ?? 0) >= 0 ? "text-emerald-400" : "text-rose-400"
+                        }`}
+                      >
+                        {formatCurrency(t.amount ?? Number.NaN)}
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))}
               </TableBody>

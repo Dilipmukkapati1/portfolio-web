@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/table";
 import { buildAccountNameMap } from "@/lib/accounts";
 import { api } from "@/lib/api";
+import { usePrivacy } from "@/components/PrivacyProvider";
 import type { AccountRecord } from "@/lib/types";
 import type { Member } from "@/lib/household-types";
 import {
@@ -35,7 +36,7 @@ import {
   type HoldingRecord,
   type SymbolAggregate,
 } from "@/lib/holdings";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatPercent } from "@/lib/utils";
 
 type GroupMode = "account" | "symbol" | "category";
 type ViewMode = "holdings" | "allocation";
@@ -44,13 +45,16 @@ type ChartStyle = "pie" | "table";
 function HoldingRow({
   holding,
   totalValue,
+  hidden,
 }: {
   holding: HoldingRecord;
   totalValue: number;
+  hidden: boolean;
 }) {
   const value = getHoldingValue(holding);
   const category = resolveHoldingCategory(holding);
-  const percent = totalValue > 0 ? (value / totalValue) * 100 : 0;
+  const percent =
+    holding.portfolioPercent ?? (totalValue > 0 ? (value / totalValue) * 100 : 0);
   const label = isCashHolding(holding)
     ? "Cash"
     : holding.description?.trim() || holding.symbol;
@@ -76,22 +80,22 @@ function HoldingRow({
         </Badge>
       </TableCell>
       <TableCell className="text-right tabular-nums">
-        {isCashHolding(holding)
+        {hidden || isCashHolding(holding)
           ? "—"
-          : holding.quantity.toLocaleString(undefined, {
+          : (holding.quantity ?? 0).toLocaleString(undefined, {
               maximumFractionDigits: 4,
             })}
       </TableCell>
       <TableCell className="text-right tabular-nums">
-        {holding.price != null && !isCashHolding(holding)
+        {!hidden && holding.price != null && !isCashHolding(holding)
           ? formatCurrency(holding.price)
           : "—"}
       </TableCell>
       <TableCell className="text-right tabular-nums font-medium">
-        {formatCurrency(value)}
+        {formatCurrency(value, { hidden })}
       </TableCell>
       <TableCell className="text-right tabular-nums text-muted-foreground">
-        {percent.toFixed(1)}%
+        {formatPercent(percent)}
       </TableCell>
     </TableRow>
   );
@@ -103,12 +107,14 @@ function SymbolAggregateRow({
   totalValue,
   expanded,
   onToggle,
+  hidden,
 }: {
   aggregate: SymbolAggregate;
   accountNames: Map<string, string>;
   totalValue: number;
   expanded: boolean;
   onToggle: () => void;
+  hidden: boolean;
 }) {
   const percent =
     totalValue > 0 ? (aggregate.totalMarketValue / totalValue) * 100 : 0;
@@ -155,22 +161,22 @@ function SymbolAggregateRow({
           </div>
         </TableCell>
         <TableCell className="text-right tabular-nums">
-          {aggregate.isCash
+          {hidden || aggregate.isCash
             ? "—"
             : aggregate.totalQuantity.toLocaleString(undefined, {
                 maximumFractionDigits: 4,
               })}
         </TableCell>
         <TableCell className="text-right tabular-nums">
-          {aggregate.weightedAvgPrice != null && !aggregate.isCash
+          {!hidden && aggregate.weightedAvgPrice != null && !aggregate.isCash
             ? formatCurrency(aggregate.weightedAvgPrice)
             : "—"}
         </TableCell>
         <TableCell className="text-right tabular-nums font-medium">
-          {formatCurrency(aggregate.totalMarketValue)}
+          {formatCurrency(aggregate.totalMarketValue, { hidden })}
         </TableCell>
         <TableCell className="text-right tabular-nums text-muted-foreground">
-          {percent.toFixed(1)}%
+          {formatPercent(percent)}
         </TableCell>
       </TableRow>
       {expanded &&
@@ -180,19 +186,19 @@ function SymbolAggregateRow({
               {accountNames.get(account.accountId) ?? account.accountId}
             </TableCell>
             <TableCell className="text-right tabular-nums text-sm">
-              {aggregate.isCash
+              {hidden || aggregate.isCash
                 ? "—"
                 : account.quantity.toLocaleString(undefined, {
                     maximumFractionDigits: 4,
                   })}
             </TableCell>
             <TableCell className="text-right tabular-nums text-sm">
-              {account.price != null && !aggregate.isCash
+              {!hidden && account.price != null && !aggregate.isCash
                 ? formatCurrency(account.price)
                 : "—"}
             </TableCell>
             <TableCell className="text-right tabular-nums text-sm">
-              {formatCurrency(account.marketValue)}
+              {formatCurrency(account.marketValue, { hidden })}
             </TableCell>
             <TableCell />
           </TableRow>
@@ -202,6 +208,7 @@ function SymbolAggregateRow({
 }
 
 export default function HoldingsPage() {
+  const { isUnlocked, privacyVersion } = usePrivacy();
   const [holdings, setHoldings] = useState<HoldingRecord[]>([]);
   const [accounts, setAccounts] = useState<AccountRecord[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
@@ -214,6 +221,8 @@ export default function HoldingsPage() {
   );
 
   useEffect(() => {
+    setLoading(true);
+    setExpandedSymbols(new Set());
     Promise.all([api.getHoldings(), api.getAccounts(), api.listMembers()])
       .then(([holdingsRes, accountsRes, membersRes]) => {
         setHoldings(parseHoldings(holdingsRes.holdings));
@@ -225,7 +234,9 @@ export default function HoldingsPage() {
               ? String(a.institutionName)
               : undefined,
             source: String(a.source),
-            balance: Number(a.balance) || 0,
+            balance: a.balance != null ? Number(a.balance) : undefined,
+            percentOfNetWorth:
+              a.percentOfNetWorth != null ? Number(a.percentOfNetWorth) : undefined,
             accountType: a.accountType ? String(a.accountType) : undefined,
             ownerMemberId: a.ownerMemberId
               ? String(a.ownerMemberId)
@@ -235,7 +246,7 @@ export default function HoldingsPage() {
               : undefined,
           }))
         );
-        setMembers(membersRes.members);
+        setMembers((membersRes.members as Member[]) ?? []);
       })
       .catch(() => {
         setHoldings([]);
@@ -243,7 +254,7 @@ export default function HoldingsPage() {
         setMembers([]);
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [privacyVersion]);
 
   const accountNames = useMemo(
     () => buildAccountNameMap(accounts, members),
@@ -273,6 +284,31 @@ export default function HoldingsPage() {
   }, [groupedByAccount, accountNames]);
 
   const allocationSlices = useMemo(() => {
+    if (!isUnlocked) {
+      const byId = new Map<string, { id: string; label: string; percent: number }>();
+      const add = (id: string, label: string, percent: number) => {
+        const entry = byId.get(id) ?? { id, label, percent: 0 };
+        entry.percent += percent;
+        byId.set(id, entry);
+      };
+      for (const holding of holdings) {
+        const category = resolveHoldingCategory(holding);
+        const id =
+          groupMode === "symbol"
+            ? holding.symbol
+            : groupMode === "account"
+              ? holding.accountId
+              : category;
+        const label =
+          groupMode === "account"
+            ? accountNames.get(holding.accountId) ?? holding.accountId
+            : groupMode === "category"
+              ? investmentCategoryLabel(category)
+              : holding.symbol;
+        add(id, label, holding.portfolioPercent ?? 0);
+      }
+      return [...byId.values()].map((slice) => ({ ...slice, value: 0 }));
+    }
     if (groupMode === "symbol") {
       return computeAllocations(
         groupedBySymbol.map((aggregate) => ({
@@ -306,7 +342,16 @@ export default function HoldingsPage() {
       })),
       totalValue
     );
-  }, [groupMode, groupedBySymbol, groupedByCategory, accountSections, accountNames, totalValue]);
+  }, [
+    accountNames,
+    accountSections,
+    groupMode,
+    groupedByCategory,
+    groupedBySymbol,
+    holdings,
+    isUnlocked,
+    totalValue,
+  ]);
 
   function toggleSymbol(symbol: string) {
     setExpandedSymbols((prev) => {
@@ -383,7 +428,7 @@ export default function HoldingsPage() {
           <CardContent className="flex items-center justify-between p-4">
             <p className="text-sm text-muted-foreground">Total positions value</p>
             <p className="text-xl font-semibold tabular-nums">
-              {formatCurrency(totalValue)}
+              {formatCurrency(totalValue, { hidden: !isUnlocked })}
             </p>
           </CardContent>
         </Card>
@@ -397,7 +442,11 @@ export default function HoldingsPage() {
           accounts with positions will appear here with cash balances.
         </p>
       ) : viewMode === "allocation" ? (
-        <AllocationView slices={allocationSlices} chartStyle={chartStyle} />
+        <AllocationView
+          slices={allocationSlices}
+          chartStyle={chartStyle}
+          hideAmounts={!isUnlocked}
+        />
       ) : groupMode === "category" ? (
         <div className="space-y-4">
           {groupedByCategory.map((section) => (
@@ -407,7 +456,7 @@ export default function HoldingsPage() {
                   {section.label}
                 </CardTitle>
                 <Badge variant="secondary" className="tabular-nums">
-                  {formatCurrency(section.totalMarketValue)}
+                  {formatCurrency(section.totalMarketValue, { hidden: !isUnlocked })}
                 </Badge>
               </CardHeader>
               <CardContent className="p-0 pb-2">
@@ -434,6 +483,7 @@ export default function HoldingsPage() {
                         onToggle={() =>
                           toggleSymbol(`${section.category}-${aggregate.symbol}`)
                         }
+                        hidden={!isUnlocked}
                       />
                     ))}
                   </TableBody>
@@ -449,7 +499,7 @@ export default function HoldingsPage() {
               All investments
             </CardTitle>
             <Badge variant="secondary" className="tabular-nums">
-              {formatCurrency(totalValue)}
+              {formatCurrency(totalValue, { hidden: !isUnlocked })}
             </Badge>
           </CardHeader>
           <CardContent className="p-0 pb-2">
@@ -472,6 +522,7 @@ export default function HoldingsPage() {
                     totalValue={totalValue}
                     expanded={expandedSymbols.has(aggregate.symbol)}
                     onToggle={() => toggleSymbol(aggregate.symbol)}
+                    hidden={!isUnlocked}
                   />
                 ))}
               </TableBody>
@@ -492,7 +543,7 @@ export default function HoldingsPage() {
                     {accountNames.get(accountId) ?? accountId}
                   </CardTitle>
                   <Badge variant="secondary" className="tabular-nums">
-                    {formatCurrency(accountTotal)}
+                    {formatCurrency(accountTotal, { hidden: !isUnlocked })}
                   </Badge>
                 </CardHeader>
                 <CardContent className="p-0 pb-2">
@@ -513,6 +564,7 @@ export default function HoldingsPage() {
                           key={h.holdingId}
                           holding={h}
                           totalValue={totalValue}
+                          hidden={!isUnlocked}
                         />
                       ))}
                     </TableBody>

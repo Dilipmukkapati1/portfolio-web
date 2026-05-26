@@ -4,32 +4,13 @@ import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { Banknote, Gauge, TrendingUp } from "lucide-react";
 import { AllocationView } from "@/components/holdings/allocation-view";
-import { computeNetWorth, computeUninvestedCash, summarizeAccounts } from "@/lib/accounts";
 import { api } from "@/lib/api";
 import {
-  computeFreedomScore,
-  sumMemberPassiveIncome,
-} from "@/lib/freedom-score";
-import type { Member } from "@/lib/household-types";
-import {
-  computeAllocations,
-  DASHBOARD_CATEGORY_LABELS,
-  groupHoldingsByAccount,
-  groupHoldingsByCategory,
-  holdingsTotalValue,
-  parseHoldings,
-  type HoldingRecord,
-} from "@/lib/holdings";
-import { parseTransactions } from "@/lib/transactions";
-import {
   currentMonthLabel,
-  earliestDashboardTransactionDate,
   monthStartDate,
-  summarizeTransactions,
-  type TransactionPeriodSummary,
 } from "@/lib/transactions-summary";
-import type { AccountRecord } from "@/lib/types";
 import { formatCurrencyWhole } from "@/lib/utils";
+import { usePrivacy } from "@/components/PrivacyProvider";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatCard } from "@/components/shared/stat-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -44,178 +25,78 @@ const itemVariants = {
   show: { opacity: 1, y: 0 },
 };
 
-const NET_WORTH_HIGHLIGHT = 500_000;
-const UNINVESTED_CASH_HIGHLIGHT = 25_000;
-
 function todayDate(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+type DashboardAnalytics = {
+  privacyMode?: "locked" | "unlocked";
+  valuesUnlocked?: boolean;
+  allocation?: Array<{ id: string; label: string; percent: number }>;
+  spendByCategoryPercent?: Record<string, number>;
+  transactionCount?: number;
+  freedomScore?: { score: number | null; annualIncome?: number; annualExpenses?: number };
+  netWorth?: number;
+  uninvestedCash?: number;
+};
+
 export default function DashboardPage() {
-  const [accounts, setAccounts] = useState<AccountRecord[]>([]);
-  const [holdings, setHoldings] = useState<HoldingRecord[]>([]);
-  const [monthSummary, setMonthSummary] = useState<TransactionPeriodSummary>({
-    totalCredits: 0,
-    totalSpend: 0,
-    spendByCategory: {},
-    transactionCount: 0,
-  });
-  const [members, setMembers] = useState<Member[]>([]);
+  const { isUnlocked, privacyVersion } = usePrivacy();
+  const [analytics, setAnalytics] = useState<DashboardAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-
-    async function loadMonthSpendSummary(endDate: string) {
-      try {
-        const monthRes = await api.getTransactionSummary({
-          startDate: monthStartDate(),
-          endDate,
-        });
-        if (cancelled) return;
-        setMonthSummary(monthRes);
-        return;
-      } catch {
-        // Fall back when summary endpoint or SQL is unavailable.
-      }
-
-      try {
-        const res = await api.getTransactions({
-          startDate: earliestDashboardTransactionDate(),
-          endDate,
-          limit: "500",
-        });
-        if (cancelled) return;
-        const transactions = parseTransactions(res.transactions);
-        setMonthSummary(
-          summarizeTransactions(transactions, {
-            startDate: monthStartDate(),
-            endDate,
-          })
-        );
-      } catch {
-        if (!cancelled) {
-          setMonthSummary({
-            totalCredits: 0,
-            totalSpend: 0,
-            spendByCategory: {},
-            transactionCount: 0,
-          });
-        }
-      }
-    }
-
     async function load() {
       setLoading(true);
-      const endDate = todayDate();
-
+      setError(null);
+      setAnalytics(null);
       try {
-        const [accountsRes, holdingsRes, membersRes] = await Promise.all([
-          api.getAccounts(),
-          api.getHoldings(),
-          api.listMembers().catch(() => ({ members: [] as Member[] })),
-        ]);
+        const data = await api.getDashboardAnalytics({
+          startDate: monthStartDate(),
+          endDate: todayDate(),
+        });
         if (cancelled) return;
-        setMembers(membersRes.members);
-        setAccounts(
-          accountsRes.accounts.map((a) => ({
-            accountId: String(a.accountId),
-            displayName: String(a.displayName),
-            institutionName: a.institutionName
-              ? String(a.institutionName)
-              : undefined,
-            source: String(a.source),
-            balance: Number(a.balance) || 0,
-            accountType: a.accountType ? String(a.accountType) : undefined,
-          }))
-        );
-        setHoldings(parseHoldings(holdingsRes.holdings));
-      } catch {
+        setAnalytics(data as DashboardAnalytics);
+      } catch (err) {
         if (!cancelled) {
-          setAccounts([]);
-          setHoldings([]);
-          setMembers([]);
+          setError(err instanceof Error ? err.message : "Dashboard summary unavailable");
         }
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-
-      await loadMonthSpendSummary(endDate);
-
-      if (!cancelled) setLoading(false);
     }
 
     load();
     return () => {
       cancelled = true;
     };
-  }, []);
-
-  const holdingsByAccount = useMemo(
-    () => groupHoldingsByAccount(holdings),
-    [holdings]
-  );
-
-  const summary = useMemo(
-    () => summarizeAccounts(accounts, holdingsByAccount),
-    [accounts, holdingsByAccount]
-  );
-
-  const netWorth = useMemo(
-    () => computeNetWorth(accounts, holdingsByAccount),
-    [accounts, holdingsByAccount]
-  );
-
-  const uninvestedCash = useMemo(
-    () => computeUninvestedCash(accounts, holdingsByAccount),
-    [accounts, holdingsByAccount]
-  );
-
-  const freedomScoreResult = useMemo(() => {
-    const memberPassiveIncomeAnnual = sumMemberPassiveIncome(members);
-    return computeFreedomScore({
-      totalInvestments: summary.totalInvestments,
-      monthlySpend: monthSummary.totalSpend,
-      memberPassiveIncomeAnnual,
-    });
-  }, [
-    members,
-    summary.totalInvestments,
-    monthSummary.totalSpend,
-  ]);
+  }, [privacyVersion]);
 
   const categoryAllocation = useMemo(() => {
-    const grouped = groupHoldingsByCategory(holdings);
-    const total = holdingsTotalValue(holdings);
-    return computeAllocations(
-      grouped.map((section) => ({
-        id: section.category,
-        label: DASHBOARD_CATEGORY_LABELS[section.category],
-        value: section.totalMarketValue,
-      })),
-      total
-    );
-  }, [holdings]);
-
-  const accountCount =
-    summary.bankAccounts.length +
-    summary.creditAccounts.length +
-    summary.investmentAccounts.length;
+    return (analytics?.allocation ?? []).map((slice) => ({
+      ...slice,
+      value: 0,
+    }));
+  }, [analytics]);
 
   const monthLabel = currentMonthLabel();
 
   const freedomScoreValue =
-    loading || freedomScoreResult.score === null
+    loading || !analytics?.freedomScore || analytics.freedomScore.score === null
       ? "—"
-      : `${freedomScoreResult.score}/100`;
+      : `${analytics.freedomScore.score}/100`;
 
   const freedomScoreDescription = loading
     ? "Loading…"
-    : freedomScoreResult.score === null
+    : error
+      ? "Summary unavailable"
+    : !analytics?.freedomScore || analytics.freedomScore.score === null
       ? "No spend this month — score needs expenses"
-      : freedomScoreResult.score === 0 &&
-          summary.totalInvestments === 0 &&
-          sumMemberPassiveIncome(members) === 0
-        ? "Add holdings or household income on Household"
-        : `4% withdrawal + interest/dividends vs ${monthLabel} spend`;
+      : `4% withdrawal + interest/dividends vs ${monthLabel} spend`;
+
+  const unlocked = isUnlocked && analytics?.valuesUnlocked === true;
 
   return (
     <motion.div
@@ -237,35 +118,39 @@ export default function DashboardPage() {
       >
         <StatCard
           title="Net worth"
-          value={loading ? "—" : formatCurrencyWhole(netWorth)}
+          value={
+            loading
+              ? "—"
+              : unlocked && typeof analytics?.netWorth === "number"
+                ? formatCurrencyWhole(analytics.netWorth)
+                : "Unlock to view"
+          }
           description={
             loading
               ? "Loading…"
-              : accountCount === 0
-                ? "Connect accounts to see net worth"
-                : "Cash, investments, minus credit"
+              : unlocked
+                ? "Cash, investments, minus credit"
+                : "Dollar values hidden"
           }
           icon={TrendingUp}
-          valueClassName={
-            !loading && netWorth > NET_WORTH_HIGHLIGHT
-              ? "text-emerald-400"
-              : undefined
-          }
         />
         <StatCard
           title="Uninvested cash"
-          value={loading ? "—" : formatCurrencyWhole(uninvestedCash)}
+          value={
+            loading
+              ? "—"
+              : unlocked && typeof analytics?.uninvestedCash === "number"
+                ? formatCurrencyWhole(analytics.uninvestedCash)
+                : "Unlock to view"
+          }
           description={
             loading
               ? "Loading…"
-              : "Bank cash + brokerage cash"
+              : unlocked
+                ? "Bank cash + brokerage cash"
+                : "Dollar values hidden"
           }
           icon={Banknote}
-          valueClassName={
-            !loading && uninvestedCash > UNINVESTED_CASH_HIGHLIGHT
-              ? "text-rose-400"
-              : undefined
-          }
         />
         <StatCard
           title="Freedom Score"
@@ -288,7 +173,9 @@ export default function DashboardPage() {
             <CardContent className="flex flex-col justify-center">
               {loading ? (
                 <p className="text-sm text-muted-foreground">Loading holdings…</p>
-              ) : holdings.length === 0 ? (
+              ) : error ? (
+                <p className="text-sm text-muted-foreground">{error}</p>
+              ) : categoryAllocation.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
                   No holdings yet. Sync investment accounts from Connections.
                 </p>
@@ -298,6 +185,7 @@ export default function DashboardPage() {
                   chartStyle="pie"
                   className="border-0 bg-transparent p-0"
                   formatAmount={formatCurrencyWhole}
+                  hideAmounts={!unlocked}
                 />
               )}
             </CardContent>

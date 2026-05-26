@@ -6,6 +6,7 @@ import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useHousehold } from "@/components/HouseholdProvider";
+import { usePrivacy } from "@/components/PrivacyProvider";
 import {
   HouseholdForm,
   defaultHouseholdFormValues,
@@ -28,6 +29,7 @@ type PanelMode = "create" | "edit" | null;
 
 export default function HouseholdManagePage() {
   const { householdId: activeId, setHouseholdId, refresh } = useHousehold();
+  const { isUnlocked, privacyVersion, showUnlockDialog } = usePrivacy();
 
   const [households, setHouseholds] = useState<Household[]>([]);
   const [loading, setLoading] = useState(true);
@@ -64,7 +66,7 @@ export default function HouseholdManagePage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [privacyVersion]);
 
   useEffect(() => {
     void loadHouseholds();
@@ -113,6 +115,10 @@ export default function HouseholdManagePage() {
   }
 
   async function openCreate() {
+    if (!isUnlocked) {
+      showUnlockDialog();
+      return;
+    }
     setEditingHousehold(null);
     setEditMembers([]);
     setEditTaxProfile(null);
@@ -123,6 +129,10 @@ export default function HouseholdManagePage() {
   }
 
   async function openEdit(household: Household) {
+    if (!isUnlocked) {
+      showUnlockDialog();
+      return;
+    }
     setEditingHousehold(household);
     setPanel("edit");
     setMessage(null);

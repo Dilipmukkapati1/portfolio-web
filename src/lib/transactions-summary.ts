@@ -22,10 +22,12 @@ export function summarizeTransactionList(
   let totalDebits = 0;
 
   for (const txn of transactions) {
-    if (txn.amount > 0) {
-      totalCredits += txn.amount;
-    } else if (txn.amount < 0) {
-      totalDebits += Math.abs(txn.amount);
+    const amount = txn.amount;
+    if (amount === undefined) continue;
+    if (amount > 0) {
+      totalCredits += amount;
+    } else if (amount < 0) {
+      totalDebits += Math.abs(amount);
     }
   }
 
@@ -59,10 +61,12 @@ export function summarizeTransactions(
   for (const txn of filtered) {
     if (isExcluded(txn.category)) continue;
 
-    if (txn.amount > 0) {
-      totalCredits += txn.amount;
-    } else if (txn.amount < 0) {
-      const spend = Math.abs(txn.amount);
+    const amount = txn.amount;
+    if (amount === undefined) continue;
+    if (amount > 0) {
+      totalCredits += amount;
+    } else if (amount < 0) {
+      const spend = Math.abs(amount);
       totalSpend += spend;
       spendByCategory[txn.category] =
         (spendByCategory[txn.category] ?? 0) + spend;

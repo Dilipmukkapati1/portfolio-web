@@ -3,6 +3,7 @@
 import { useCallback, useState } from "react";
 import { motion } from "framer-motion";
 import { HouseholdProvider } from "@/components/HouseholdProvider";
+import { PrivacyProvider } from "@/components/PrivacyProvider";
 import { Header } from "@/components/layout/header";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { Sidebar } from "@/components/layout/sidebar";
@@ -17,6 +18,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <HouseholdProvider>
+    <PrivacyProvider>
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
@@ -37,6 +39,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </motion.div>
       <MobileNav open={mobileOpen} onClose={() => setMobileOpen(false)} />
     </motion.div>
+    </PrivacyProvider>
     </HouseholdProvider>
   );
 }

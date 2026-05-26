@@ -8,6 +8,7 @@ import { getNavIcon } from "@/lib/nav-icons";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { UserNav } from "@/components/shared/user-nav";
+import { PrivacyToggle } from "@/components/PrivacyProvider";
 
 interface SidebarProps {
   collapsed?: boolean;
@@ -73,6 +74,7 @@ export function Sidebar({ collapsed = false, onToggle, admin }: SidebarProps) {
       </nav>
 
       <div className="space-y-2 border-t border-border p-2">
+        {!collapsed && <PrivacyToggle />}
         {!collapsed && <UserNav />}
         {onToggle && (
           <Button

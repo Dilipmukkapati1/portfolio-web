@@ -7,8 +7,9 @@ export function cn(...inputs: ClassValue[]) {
 
 export function formatCurrency(
   amount: number,
-  options?: { decimals?: number }
+  options?: { decimals?: number; hidden?: boolean }
 ): string {
+  if (options?.hidden) return "—";
   if (!Number.isFinite(amount)) return "—";
   const decimals = options?.decimals ?? 2;
   return new Intl.NumberFormat("en-US", {
@@ -21,6 +22,11 @@ export function formatCurrency(
 
 export function formatCurrencyWhole(amount: number): string {
   return formatCurrency(amount, { decimals: 0 });
+}
+
+export function formatPercent(value: number | undefined, decimals = 1): string {
+  if (value === undefined || !Number.isFinite(value)) return "—";
+  return `${value.toFixed(decimals)}%`;
 }
 
 export function formatDate(date: string | Date): string {

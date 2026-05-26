@@ -59,9 +59,11 @@ function describeArc(
 function AllocationPieChart({
   slices,
   formatAmount = formatCurrency,
+  hideAmounts = false,
 }: {
   slices: AllocationSlice[];
   formatAmount?: (amount: number) => string;
+  hideAmounts?: boolean;
 }) {
   const visibleSlices = slices.filter((slice) => slice.value > 0);
   let cumulative = 0;
@@ -117,7 +119,8 @@ function AllocationPieChart({
             <span className="min-w-0">
               <span className="font-medium">{slice.label}</span>
               <span className="block text-xs tabular-nums text-muted-foreground">
-                {slice.percent.toFixed(1)}% · {formatAmount(slice.value)}
+                {slice.percent.toFixed(1)}%
+                {!hideAmounts && <> · {formatAmount(slice.value)}</>}
               </span>
             </span>
           </li>
@@ -130,9 +133,11 @@ function AllocationPieChart({
 function AllocationTable({
   slices,
   formatAmount = formatCurrency,
+  hideAmounts = false,
 }: {
   slices: AllocationSlice[];
   formatAmount?: (amount: number) => string;
+  hideAmounts?: boolean;
 }) {
   const sorted = useMemo(
     () => [...slices].sort((a, b) => b.percent - a.percent || b.value - a.value),
@@ -144,7 +149,7 @@ function AllocationTable({
       <TableHeader>
         <TableRow>
           <TableHead>Investment</TableHead>
-          <TableHead className="text-right">Value</TableHead>
+          {!hideAmounts && <TableHead className="text-right">Value</TableHead>}
           <TableHead className="text-right">% of portfolio</TableHead>
         </TableRow>
       </TableHeader>
@@ -152,9 +157,11 @@ function AllocationTable({
         {sorted.map((slice) => (
           <TableRow key={slice.id}>
             <TableCell className="font-medium">{slice.label}</TableCell>
-            <TableCell className="text-right tabular-nums">
-              {formatAmount(slice.value)}
-            </TableCell>
+            {!hideAmounts && (
+              <TableCell className="text-right tabular-nums">
+                {formatAmount(slice.value)}
+              </TableCell>
+            )}
             <TableCell className="text-right tabular-nums">
               {slice.percent.toFixed(1)}%
             </TableCell>
@@ -170,6 +177,7 @@ type AllocationViewProps = {
   chartStyle: "pie" | "table";
   className?: string;
   formatAmount?: (amount: number) => string;
+  hideAmounts?: boolean;
 };
 
 export function AllocationView({
@@ -177,13 +185,22 @@ export function AllocationView({
   chartStyle,
   className,
   formatAmount,
+  hideAmounts,
 }: AllocationViewProps) {
   return (
     <div className={cn("rounded-lg border bg-card p-4", className)}>
       {chartStyle === "pie" ? (
-        <AllocationPieChart slices={slices} formatAmount={formatAmount} />
+        <AllocationPieChart
+          slices={slices}
+          formatAmount={formatAmount}
+          hideAmounts={hideAmounts}
+        />
       ) : (
-        <AllocationTable slices={slices} formatAmount={formatAmount} />
+        <AllocationTable
+          slices={slices}
+          formatAmount={formatAmount}
+          hideAmounts={hideAmounts}
+        />
       )}
     </div>
   );

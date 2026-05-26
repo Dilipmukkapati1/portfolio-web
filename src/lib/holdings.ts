@@ -30,11 +30,14 @@ export type HoldingRecord = {
   accountId: string;
   symbol: string;
   description?: string;
-  quantity: number;
+  quantity?: number;
   price?: number;
   marketValue?: number;
   currency?: string;
   category?: InvestmentCategory;
+  portfolioPercent?: number;
+  categoryPercent?: number;
+  accountPercent?: number;
 };
 
 export type SymbolAccountBreakdown = {
@@ -167,10 +170,15 @@ export function parseHoldings(
       accountId: String(h.accountId),
       symbol: String(h.symbol),
       description: h.description ? String(h.description) : undefined,
-      quantity: Number(h.quantity) || 0,
+      quantity: h.quantity != null ? Number(h.quantity) : undefined,
       price: h.price != null ? Number(h.price) : undefined,
       marketValue: h.marketValue != null ? Number(h.marketValue) : undefined,
       currency: h.currency ? String(h.currency) : undefined,
+      portfolioPercent:
+        h.portfolioPercent != null ? Number(h.portfolioPercent) : undefined,
+      categoryPercent:
+        h.categoryPercent != null ? Number(h.categoryPercent) : undefined,
+      accountPercent: h.accountPercent != null ? Number(h.accountPercent) : undefined,
       category: categoryValue
         ? normalizeInvestmentCategory(categoryValue)
         : undefined,
@@ -179,7 +187,7 @@ export function parseHoldings(
 }
 
 export function getHoldingValue(holding: HoldingRecord): number {
-  return holding.marketValue ?? holding.quantity * (holding.price ?? 0);
+  return holding.marketValue ?? (holding.quantity ?? 0) * (holding.price ?? 0);
 }
 
 export function sortHoldingsByAllocation(
@@ -245,11 +253,11 @@ export function groupHoldingsBySymbol(
       aggregate.description = holding.description;
     }
 
-    aggregate.totalQuantity += holding.quantity;
+    aggregate.totalQuantity += holding.quantity ?? 0;
     aggregate.totalMarketValue += value;
     aggregate.accounts.push({
       accountId: holding.accountId,
-      quantity: holding.quantity,
+      quantity: holding.quantity ?? 0,
       marketValue: value,
       price: holding.price,
     });

@@ -2,7 +2,8 @@ export type TransactionRecord = {
   id: string;
   txnId: string;
   accountId: string;
-  amount: number;
+  amount?: number;
+  direction?: "credit" | "debit";
   date: string;
   description: string;
   category: string;
@@ -57,7 +58,11 @@ export function parseTransactions(
     id: String(t.id ?? t.txnId),
     txnId: String(t.txnId ?? t.id),
     accountId: String(t.accountId),
-    amount: Number(t.amount) || 0,
+    amount: t.amount != null ? Number(t.amount) : undefined,
+    direction:
+      t.direction === "credit" || t.direction === "debit"
+        ? t.direction
+        : undefined,
     date: String(t.date),
     description: String(t.description ?? ""),
     category: String(t.category ?? "uncategorized"),

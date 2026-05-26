@@ -65,7 +65,9 @@ function AllocationPieChart({
   formatAmount?: (amount: number) => string;
   hideAmounts?: boolean;
 }) {
-  const visibleSlices = slices.filter((slice) => slice.value > 0);
+  const visibleSlices = slices.filter((slice) =>
+    hideAmounts ? slice.percent > 0 : slice.value > 0
+  );
   let cumulative = 0;
 
   if (visibleSlices.length === 0) {

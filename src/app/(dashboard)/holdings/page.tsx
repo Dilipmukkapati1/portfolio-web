@@ -117,7 +117,8 @@ function SymbolAggregateRow({
   hidden: boolean;
 }) {
   const percent =
-    totalValue > 0 ? (aggregate.totalMarketValue / totalValue) * 100 : 0;
+    aggregate.portfolioPercent ??
+    (totalValue > 0 ? (aggregate.totalMarketValue / totalValue) * 100 : 0);
   const label = aggregate.isCash
     ? "Cash"
     : aggregate.description?.trim() || aggregate.symbol;
@@ -307,7 +308,11 @@ export default function HoldingsPage() {
               : holding.symbol;
         add(id, label, holding.portfolioPercent ?? 0);
       }
-      return [...byId.values()].map((slice) => ({ ...slice, value: 0 }));
+      return [...byId.values()].map((slice) => ({
+        ...slice,
+        // Use percent as chart weight when dollar values are hidden (see dashboard).
+        value: slice.percent,
+      }));
     }
     if (groupMode === "symbol") {
       return computeAllocations(

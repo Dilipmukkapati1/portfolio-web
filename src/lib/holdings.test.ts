@@ -61,6 +61,29 @@ describe("groupHoldingsBySymbol", () => {
     expect(grouped[1].symbol).toBe("AAPL");
   });
 
+  it("sums portfolioPercent across accounts when values are redacted", () => {
+    const holdings = [
+      holding({
+        holdingId: "acct-1-VOO",
+        accountId: "acct-1",
+        symbol: "VOO",
+        portfolioPercent: 40,
+      }),
+      holding({
+        holdingId: "acct-2-VOO",
+        accountId: "acct-2",
+        symbol: "VOO",
+        portfolioPercent: 10,
+      }),
+    ];
+
+    const grouped = groupHoldingsBySymbol(holdings);
+
+    expect(grouped).toHaveLength(1);
+    expect(grouped[0]?.portfolioPercent).toBe(50);
+    expect(grouped[0]?.totalMarketValue).toBe(0);
+  });
+
   it("sorts cash last and securities by value descending", () => {
     const holdings = [
       holding({

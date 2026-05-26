@@ -55,6 +55,8 @@ export type SymbolAggregate = {
   categoryLabel: string;
   totalQuantity: number;
   totalMarketValue: number;
+  /** Sum of API-provided portfolioPercent when dollar values are redacted. */
+  portfolioPercent?: number;
   weightedAvgPrice?: number;
   accounts: SymbolAccountBreakdown[];
 };
@@ -255,6 +257,10 @@ export function groupHoldingsBySymbol(
 
     aggregate.totalQuantity += holding.quantity ?? 0;
     aggregate.totalMarketValue += value;
+    if (holding.portfolioPercent != null) {
+      aggregate.portfolioPercent =
+        (aggregate.portfolioPercent ?? 0) + holding.portfolioPercent;
+    }
     aggregate.accounts.push({
       accountId: holding.accountId,
       quantity: holding.quantity ?? 0,

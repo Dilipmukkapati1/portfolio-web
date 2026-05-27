@@ -9,7 +9,7 @@ import {
   currentMonthLabel,
   monthStartDate,
 } from "@/lib/transactions-summary";
-import { formatCurrencyWhole } from "@/lib/utils";
+import { formatCurrencyWhole, formatPercent } from "@/lib/utils";
 import { usePrivacy } from "@/components/PrivacyProvider";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatCard } from "@/components/shared/stat-card";
@@ -38,6 +38,7 @@ type DashboardAnalytics = {
   freedomScore?: { score: number | null; annualIncome?: number; annualExpenses?: number };
   netWorth?: number;
   uninvestedCash?: number;
+  uninvestedCashPercent?: number;
 };
 
 export default function DashboardPage() {
@@ -74,14 +75,23 @@ export default function DashboardPage() {
     };
   }, [privacyVersion]);
 
+  const unlocked = isUnlocked && analytics?.valuesUnlocked === true;
+
   const categoryAllocation = useMemo(() => {
+    const netWorth =
+      unlocked && typeof analytics?.netWorth === "number"
+        ? analytics.netWorth
+        : undefined;
     return (analytics?.allocation ?? []).map((slice) => ({
       ...slice,
-      // Dashboard analytics is percent-only; use percent as the chart value so
-      // AllocationView can render slices without requiring hidden dollar data.
-      value: slice.percent,
+      // Locked mode is percent-only from the API; use percent as chart weight.
+      // When unlocked, approximate slice dollars from net worth for the legend.
+      value:
+        netWorth != null && netWorth > 0
+          ? (slice.percent / 100) * netWorth
+          : slice.percent,
     }));
-  }, [analytics]);
+  }, [analytics, unlocked]);
 
   const monthLabel = currentMonthLabel();
 
@@ -97,8 +107,6 @@ export default function DashboardPage() {
     : !analytics?.freedomScore || analytics.freedomScore.score === null
       ? "No spend this month — score needs expenses"
       : `4% withdrawal + interest/dividends vs ${monthLabel} spend`;
-
-  const unlocked = isUnlocked && analytics?.valuesUnlocked === true;
 
   return (
     <motion.div
@@ -143,14 +151,16 @@ export default function DashboardPage() {
               ? "—"
               : unlocked && typeof analytics?.uninvestedCash === "number"
                 ? formatCurrencyWhole(analytics.uninvestedCash)
-                : "Unlock to view"
+                : typeof analytics?.uninvestedCashPercent === "number"
+                  ? formatPercent(analytics.uninvestedCashPercent)
+                  : "Unlock to view"
           }
           description={
             loading
               ? "Loading…"
               : unlocked
                 ? "Bank cash + brokerage cash"
-                : "Dollar values hidden"
+                : "Percent of net worth"
           }
           icon={Banknote}
         />
@@ -187,7 +197,7 @@ export default function DashboardPage() {
                   chartStyle="pie"
                   className="border-0 bg-transparent p-0"
                   formatAmount={formatCurrencyWhole}
-                  hideAmounts
+                  hideAmounts={!unlocked}
                 />
               )}
             </CardContent>

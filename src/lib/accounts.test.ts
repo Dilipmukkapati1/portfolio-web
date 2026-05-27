@@ -1,12 +1,16 @@
 import { describe, expect, it } from "vitest";
 import type { HoldingRecord } from "./holdings.js";
 import {
+  accountDisplayBalance,
   accountSignedValue,
   buildAccountNameMap,
+  computeNetWorth,
   computeUninvestedCash,
   formatAccountDisplayName,
   groupAccountsByOwner,
   investmentAccountCashBalance,
+  investmentAccountSecuritiesBalance,
+  investmentAccountTotalBalance,
   isBankAccount,
   isCreditAccount,
   isInvestmentAccount,
@@ -244,7 +248,7 @@ describe("summarizeAccounts", () => {
     expect(summary.totalUninvestedCash).toBe(13_000);
   });
 
-  it("uses holdings value for investment account totals when synced", () => {
+  it("excludes brokerage cash from investment totals when holdings are synced", () => {
     const accounts = [
       account({
         accountId: "2",
@@ -275,7 +279,8 @@ describe("summarizeAccounts", () => {
       ],
     ]);
     const summary = summarizeAccounts(accounts, holdings);
-    expect(summary.totalInvestments).toBe(50_000);
+    expect(summary.totalInvestments).toBe(42_000);
+    expect(summary.totalUninvestedCash).toBe(8_000);
   });
 });
 
@@ -410,7 +415,7 @@ describe("computeUninvestedCash", () => {
     expect(computeUninvestedCash(accounts, holdings)).toBe(13_000);
   });
 
-  it("uses brokerage balance when no holdings are synced", () => {
+  it("counts unsynced brokerage balances as investments, not uninvested cash", () => {
     const accounts = [
       account({
         accountId: "1",
@@ -420,7 +425,8 @@ describe("computeUninvestedCash", () => {
       }),
     ];
 
-    expect(computeUninvestedCash(accounts)).toBe(12_000);
+    expect(computeUninvestedCash(accounts)).toBe(0);
+    expect(summarizeAccounts(accounts).totalInvestments).toBe(12_000);
   });
 
   it("counts residual cash when securities exist but no CASH holding row", () => {
@@ -481,6 +487,18 @@ describe("computeUninvestedCash", () => {
           },
         ],
       ],
+      [
+        "2",
+        [
+          {
+            holdingId: "h2",
+            accountId: "2",
+            symbol: "CASH",
+            quantity: 10_000,
+            marketValue: 10_000,
+          },
+        ],
+      ],
     ]);
 
     expect(computeUninvestedCash(accounts, holdings)).toBe(15_000);
@@ -502,7 +520,8 @@ describe("computeUninvestedCash", () => {
       }),
     ];
 
-    expect(computeUninvestedCash(accounts)).toBe(1_000);
+    expect(computeUninvestedCash(accounts)).toBe(0);
+    expect(summarizeAccounts(accounts).totalInvestments).toBe(1_000);
   });
 
   it("uses residual cash when a stale CASH row undercounts balance", () => {
@@ -665,6 +684,82 @@ describe("computeUninvestedCash", () => {
     ]);
 
     expect(computeUninvestedCash(accounts, holdings)).toBe(2_260);
+  });
+});
+
+describe("investment account balances", () => {
+  it("includes residual cash on account tiles but not in investment totals", () => {
+    const brokerage = account({
+      accountId: "2",
+      accountType: "investment",
+      balance: 50_000,
+      displayName: "Brokerage",
+    });
+    const holdings = [
+      {
+        holdingId: "h1",
+        accountId: "2",
+        symbol: "VOO",
+        quantity: 10,
+        marketValue: 42_000,
+      },
+    ];
+
+    expect(investmentAccountSecuritiesBalance(brokerage, holdings)).toBe(42_000);
+    expect(investmentAccountCashBalance(brokerage, holdings)).toBe(8_000);
+    expect(investmentAccountTotalBalance(brokerage, holdings)).toBe(50_000);
+    expect(
+      accountDisplayBalance(
+        brokerage,
+        new Map<string, HoldingRecord[]>([["2", holdings]])
+      )
+    ).toBe(50_000);
+  });
+
+  it("computes net worth from uninvested cash, securities, and credit", () => {
+    const accounts = [
+      account({
+        accountId: "1",
+        accountType: "depository",
+        balance: 5_000,
+        displayName: "Checking",
+      }),
+      account({
+        accountId: "2",
+        accountType: "investment",
+        balance: 50_000,
+        displayName: "Brokerage",
+      }),
+      account({
+        accountId: "3",
+        accountType: "credit",
+        balance: -2_000,
+        displayName: "Visa",
+      }),
+    ];
+    const holdings = new Map<string, HoldingRecord[]>([
+      [
+        "2",
+        [
+          {
+            holdingId: "h1",
+            accountId: "2",
+            symbol: "VOO",
+            quantity: 10,
+            marketValue: 42_000,
+          },
+          {
+            holdingId: "h2",
+            accountId: "2",
+            symbol: "CASH",
+            quantity: 8_000,
+            marketValue: 8_000,
+          },
+        ],
+      ],
+    ]);
+
+    expect(computeNetWorth(accounts, holdings)).toBe(53_000);
   });
 });
 

@@ -37,15 +37,56 @@ export function isInvestmentAccount(
   return !isLikelyBankAccountName(account.displayName);
 }
 
+/** Market value of non-cash positions in a brokerage account. */
+export function investmentAccountSecuritiesBalance(
+  account: AccountRecord,
+  holdings: HoldingRecord[]
+): number {
+  if (holdings.length === 0) {
+    return Math.max(account.balance ?? 0, 0);
+  }
+
+  const securitiesValue = holdings
+    .filter((holding) => !isCashHolding(holding))
+    .reduce((sum, holding) => sum + getHoldingValue(holding), 0);
+
+  if (hasSecurities(holdings)) {
+    return securitiesValue;
+  }
+
+  return 0;
+}
+
+/** Full brokerage account value (securities + cash in the account). */
+export function investmentAccountTotalBalance(
+  account: AccountRecord,
+  holdings: HoldingRecord[]
+): number {
+  if (holdings.length === 0) {
+    return Math.max(account.balance ?? 0, 0);
+  }
+
+  return (
+    investmentAccountSecuritiesBalance(account, holdings) +
+    investmentAccountCashBalance(account, holdings)
+  );
+}
+
 /** Balance shown on account tiles (uses synced positions when present). */
 export function accountDisplayBalance(
   account: AccountRecord,
   holdingsByAccount?: Map<string, HoldingRecord[]>
 ): number {
-  const holdings = holdingsByAccount?.get(account.accountId);
-  if (holdings && holdings.length > 0) {
+  const holdings = holdingsByAccount?.get(account.accountId) ?? [];
+
+  if (isInvestmentAccount(account, holdingsByAccount)) {
+    return investmentAccountTotalBalance(account, holdings);
+  }
+
+  if (holdings.length > 0) {
     return holdingsTotalValue(holdings);
   }
+
   return Math.max(account.balance ?? 0, 0);
 }
 
@@ -108,10 +149,10 @@ export function summarizeAccounts(
     const holdings = holdingsByAccount?.get(a.accountId) ?? [];
     return sum + bankAccountCashBalance(a, holdings);
   }, 0);
-  const totalInvestments = investmentAccounts.reduce(
-    (sum, a) => sum + accountDisplayBalance(a, holdingsByAccount),
-    0
-  );
+  const totalInvestments = investmentAccounts.reduce((sum, a) => {
+    const holdings = holdingsByAccount?.get(a.accountId) ?? [];
+    return sum + investmentAccountSecuritiesBalance(a, holdings);
+  }, 0);
   const totalAssets = Math.max(bankNet, 0);
   const totalCredit = creditAccounts.reduce(
     (sum, a) => sum + creditBalance(a),
@@ -322,7 +363,11 @@ export function computeNetWorth(
   holdingsByAccount?: Map<string, HoldingRecord[]>
 ): number {
   const summary = summarizeAccounts(accounts, holdingsByAccount);
-  return summary.netTotal + summary.totalInvestments;
+  return (
+    summary.totalUninvestedCash +
+    summary.totalInvestments -
+    summary.totalCredit
+  );
 }
 
 /** Cash in an investment account (CASH rows or balance minus securities). */
@@ -331,7 +376,7 @@ export function investmentAccountCashBalance(
   holdings: HoldingRecord[]
 ): number {
   if (holdings.length === 0) {
-    return Math.max(account.balance ?? 0, 0);
+    return 0;
   }
 
   const cashFromHoldings = holdings

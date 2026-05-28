@@ -6,7 +6,8 @@ import { motion } from "framer-motion";
 import { BadgeCheck, Plus, Search } from "lucide-react";
 import { ArchitectBottomNav } from "@/components/architect/architect-bottom-nav";
 import { AssetCard } from "@/components/architect/asset-card";
-import { SectorTreemap } from "@/components/architect/sector-treemap";
+import { SectorHeatmap } from "@/components/architect/sector-heatmap";
+import { SectorRankings } from "@/components/architect/sector-rankings";
 import { StrategyDonut } from "@/components/architect/strategy-donut";
 import { usePrivacy } from "@/components/PrivacyProvider";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -20,6 +21,7 @@ export default function ArchitectPage() {
   const { isUnlocked, privacyVersion } = usePrivacy();
   const [dashboard, setDashboard] = useState<ArchitectDashboard | null>(null);
   const [search, setSearch] = useState("");
+  const [timeframe, setTimeframe] = useState<"1d" | "1w" | "1m">("1d");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -29,9 +31,10 @@ export default function ArchitectPage() {
       setLoading(true);
       setError(null);
       try {
-        const data = await api.getArchitect(
-          search.trim() ? { search: search.trim() } : undefined
-        );
+        const data = await api.getArchitect({
+          ...(search.trim() ? { search: search.trim() } : {}),
+          timeframe,
+        });
         if (!cancelled) setDashboard(data as ArchitectDashboard);
       } catch (err) {
         if (!cancelled) {
@@ -48,7 +51,7 @@ export default function ArchitectPage() {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [search, privacyVersion]);
+  }, [search, timeframe, privacyVersion]);
 
   const filteredAssets = useMemo(() => {
     if (!dashboard) return [];
@@ -149,14 +152,15 @@ export default function ArchitectPage() {
           </section>
 
           <section className="rounded-2xl border border-border/80 bg-card/60 p-4">
-            <div className="mb-3">
-              <h2 className="text-sm font-semibold">Portfolio Concentration</h2>
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                Live perf.
-              </p>
-            </div>
-            <SectorTreemap sectors={dashboard.sectors} />
+            <SectorHeatmap
+              sectors={dashboard.sectors}
+              timeframe={timeframe}
+              loading={loading}
+              onTimeframeChange={setTimeframe}
+            />
           </section>
+
+          <SectorRankings sectors={dashboard.sectors} />
 
           <section className="flex items-center gap-3 rounded-2xl border border-emerald-500/25 bg-emerald-500/10 p-4">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-500/20">

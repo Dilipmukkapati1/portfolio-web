@@ -33,6 +33,7 @@ export type ArchitectDashboard = {
   title: string;
   totalCapital?: number;
   strategy: ArchitectStrategy;
+  executedStrategy: ArchitectStrategy;
   strategyCenterLabel: string;
   executionAssets: ArchitectExecutionAsset[];
   sectors: ArchitectSectorSlice[];

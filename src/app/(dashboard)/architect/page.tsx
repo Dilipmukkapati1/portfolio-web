@@ -1,21 +1,32 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { BadgeCheck, Plus, Search } from "lucide-react";
+import { BadgeCheck, Pencil, Plus, Search } from "lucide-react";
+import { AddAssetDialog } from "@/components/architect/add-asset-dialog";
 import { ArchitectBottomNav } from "@/components/architect/architect-bottom-nav";
 import { AssetCard } from "@/components/architect/asset-card";
 import { SectorHeatmap } from "@/components/architect/sector-heatmap";
 import { SectorRankings } from "@/components/architect/sector-rankings";
 import { StrategyDonut } from "@/components/architect/strategy-donut";
+import { StrategyEditorDialog } from "@/components/architect/strategy-editor-dialog";
 import { usePrivacy } from "@/components/PrivacyProvider";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { api } from "@/lib/api";
-import type { ArchitectDashboard } from "@/lib/architect-types";
+import type {
+  ArchitectDashboard,
+  ArchitectStrategy,
+} from "@/lib/architect-types";
 import { formatCurrencyWhole } from "@/lib/utils";
+
+const EMPTY_STRATEGY: ArchitectStrategy = {
+  equitiesPercent: 0,
+  bondsPercent: 0,
+  cashPercent: 0,
+};
 
 export default function ArchitectPage() {
   const { isUnlocked, privacyVersion } = usePrivacy();
@@ -24,34 +35,34 @@ export default function ArchitectPage() {
   const [timeframe, setTimeframe] = useState<"1d" | "1w" | "1m">("1d");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [strategyOpen, setStrategyOpen] = useState(false);
+  const [addAssetOpen, setAddAssetOpen] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  const loadDashboard = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await api.getArchitect({
+        ...(search.trim() ? { search: search.trim() } : {}),
+        timeframe,
+      });
+      setDashboard(data as ArchitectDashboard);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Portfolio architect unavailable"
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, [search, timeframe]);
 
   useEffect(() => {
-    let cancelled = false;
-    const timer = setTimeout(async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const data = await api.getArchitect({
-          ...(search.trim() ? { search: search.trim() } : {}),
-          timeframe,
-        });
-        if (!cancelled) setDashboard(data as ArchitectDashboard);
-      } catch (err) {
-        if (!cancelled) {
-          setError(
-            err instanceof Error ? err.message : "Portfolio architect unavailable"
-          );
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
+    const timer = setTimeout(() => {
+      void loadDashboard();
     }, 250);
-
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [search, timeframe, privacyVersion]);
+    return () => clearTimeout(timer);
+  }, [loadDashboard, privacyVersion]);
 
   const filteredAssets = useMemo(() => {
     if (!dashboard) return [];
@@ -63,10 +74,35 @@ export default function ArchitectPage() {
     );
   }, [dashboard, search]);
 
+  const existingSymbols = useMemo(
+    () => dashboard?.executionAssets.map((a) => a.symbol.toUpperCase()) ?? [],
+    [dashboard]
+  );
+
   const capitalLabel =
     isUnlocked && dashboard?.totalCapital != null
       ? formatCurrencyWhole(dashboard.totalCapital)
       : "Unlock to view";
+
+  async function saveStrategy(strategy: ArchitectStrategy) {
+    setSaveError(null);
+    const data = await api.updateArchitectPlan({ strategy });
+    setDashboard(data as ArchitectDashboard);
+  }
+
+  async function addAsset(target: {
+    symbol: string;
+    name: string;
+    assetClass: "equity" | "bond" | "cash" | "other";
+    plannedPercent: number;
+  }) {
+    setSaveError(null);
+    const data = await api.updateArchitectPlan({ addTarget: target });
+    setDashboard(data as ArchitectDashboard);
+  }
+
+  const executedStrategy =
+    dashboard?.executedStrategy ?? dashboard?.strategy ?? EMPTY_STRATEGY;
 
   return (
     <div className="mx-auto max-w-lg space-y-5 pb-24 md:max-w-3xl md:pb-8">
@@ -86,6 +122,12 @@ export default function ArchitectPage() {
         </Avatar>
       </header>
 
+      {saveError && (
+        <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-400">
+          {saveError}
+        </p>
+      )}
+
       {loading && !dashboard ? (
         <p className="text-center text-sm text-muted-foreground">Loading plan…</p>
       ) : error ? (
@@ -101,20 +143,32 @@ export default function ArchitectPage() {
               <div>
                 <h2 className="text-sm font-semibold">Strategy Overview</h2>
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  Planned vs. architected
+                  Planned vs. executed
                 </p>
               </div>
-              <div className="text-right">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  Total capital
-                </p>
-                <p className="text-sm font-bold tabular-nums text-violet-300">
-                  {capitalLabel}
-                </p>
+              <div className="flex flex-col items-end gap-2">
+                <div className="text-right">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Total capital
+                  </p>
+                  <p className="text-sm font-bold tabular-nums text-violet-300">
+                    {capitalLabel}
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 gap-1 border-violet-500/40 text-xs text-violet-300"
+                  onClick={() => setStrategyOpen(true)}
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                  Edit plan
+                </Button>
               </div>
             </div>
             <StrategyDonut
-              strategy={dashboard.strategy}
+              planned={dashboard.strategy}
+              executed={executedStrategy}
               centerLabel={dashboard.strategyCenterLabel}
             />
           </section>
@@ -126,6 +180,7 @@ export default function ArchitectPage() {
                 variant="outline"
                 size="sm"
                 className="h-8 gap-1 border-violet-500/40 text-xs text-violet-300"
+                onClick={() => setAddAssetOpen(true)}
               >
                 <Plus className="h-3.5 w-3.5" />
                 Add asset
@@ -181,6 +236,20 @@ export default function ArchitectPage() {
               </p>
             </div>
           </section>
+
+          <StrategyEditorDialog
+            open={strategyOpen}
+            onOpenChange={setStrategyOpen}
+            strategy={dashboard.strategy}
+            onSave={saveStrategy}
+          />
+          <AddAssetDialog
+            open={addAssetOpen}
+            onOpenChange={setAddAssetOpen}
+            catalog={dashboard.catalog}
+            existingSymbols={existingSymbols}
+            onSave={addAsset}
+          />
         </motion.div>
       ) : null}
 

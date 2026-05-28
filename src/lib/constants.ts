@@ -3,6 +3,7 @@ export const APP_DESCRIPTION = "Personal finance dashboard";
 
 export const NAV_ITEMS = [
   { label: "Dashboard", href: "/", icon: "LayoutDashboard" },
+  { label: "Architect", href: "/architect", icon: "PenTool" },
   { label: "Accounts", href: "/accounts", icon: "Wallet" },
   { label: "Holdings", href: "/holdings", icon: "TrendingUp" },
   { label: "Transactions", href: "/transactions", icon: "ArrowLeftRight" },

@@ -4,6 +4,7 @@
 
 @layer base {
   :root {
+    --architect-bg: #0a0e1b;
     --background: 222 47% 6%;
     --foreground: 210 40% 98%;
     --card: 222 47% 9%;

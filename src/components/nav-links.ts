@@ -5,6 +5,7 @@ import {
   Landmark,
   LayoutDashboard,
   Link2,
+  PenTool,
   PieChart,
   Rocket,
   type LucideIcon,
@@ -18,6 +19,7 @@ export type NavLink = {
 
 export const navLinks: NavLink[] = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/architect", label: "Architect", icon: PenTool },
   { href: "/household", label: "Household", icon: Home },
   { href: "/onboarding", label: "Onboarding", icon: Rocket },
   { href: "/connections", label: "Connections", icon: Link2 },

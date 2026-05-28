@@ -8,7 +8,13 @@ describe("getWebEnv", () => {
     delete process.env.NEXT_PUBLIC_DEFAULT_HOUSEHOLD_ID;
   });
 
-  it("defaults to local when NEXT_PUBLIC_APP_ENV is unset", () => {
+  it("defaults to development (dev Azure API) when NEXT_PUBLIC_APP_ENV is unset", () => {
+    expect(getWebEnv().appEnv).toBe("development");
+    expect(getWebEnv().apiUrl).toContain("ppm-dev-func");
+  });
+
+  it("uses local API when NEXT_PUBLIC_APP_ENV is local", () => {
+    process.env.NEXT_PUBLIC_APP_ENV = "local";
     expect(getWebEnv().appEnv).toBe("local");
     expect(getWebEnv().apiUrl).toBe("http://localhost:7071/api");
   });

@@ -4,20 +4,20 @@ Next.js 15 frontend for Personal Portfolio Management (Azure Static Web Apps).
 
 ## Run locally
 
-**Against local API** (portfolio-api on port 7071):
+**Default (`npm run dev`)** — uses the **deployed dev API** via `.env.development` (Architect, Analyzer, and holdings work without starting portfolio-api locally).
 
-```bash
-cp .env.example .env.local
-npm install
-npm run dev
-```
-
-**Against dev API** (same accounts/data as the deployed dev site):
+If you have an old `.env.local` pointing at `localhost:7071`, update it:
 
 ```bash
 cp env/local-against-dev.env.example .env.local
-npm install
 npm run dev
+```
+
+**Against local API** (portfolio-api on port 7071):
+
+```bash
+npm install
+npm run dev:local-api
 ```
 
 Use `dev-household` when calling the dev Function App — SimpleFIN data is stored there, not `local-household`.

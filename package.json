@@ -3,7 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "predev": "node scripts/ensure-dev-env.mjs",
     "dev": "next dev",
+    "dev:local-api": "NEXT_PUBLIC_APP_ENV=local NEXT_PUBLIC_API_URL=http://localhost:7071/api NEXT_PUBLIC_DEFAULT_HOUSEHOLD_ID=local-household next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",

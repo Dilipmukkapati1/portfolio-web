@@ -76,11 +76,13 @@ async function apiFetch<T>(
       );
     }
     if (e instanceof TypeError) {
+      const apiUrl = getApiUrl();
+      const hint =
+        apiUrl.includes("localhost") || apiUrl.includes("127.0.0.1")
+          ? " Start portfolio-api on port 7071, or run: cp env/local-against-dev.env.example .env.local && npm run dev"
+          : " Check your network and that the Function App is running.";
       throw new ApiError(
-        "Cannot reach the API at " +
-          getApiUrl() +
-          ". Start portfolio-api locally (port 7071) or set NEXT_PUBLIC_API_URL."
-        ,
+        "Cannot reach the API at " + apiUrl + "." + hint,
         0,
         "network"
       );

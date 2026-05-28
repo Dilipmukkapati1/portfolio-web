@@ -3,13 +3,17 @@ export type AppEnv = "local" | "development" | "production";
 /** Dev Function App host fragment — household data (SimpleFIN) lives under dev-household. */
 export const DEV_API_HOST_FRAGMENT = "ppm-dev-func";
 
+/** Deployed dev API — used as the default for `npm run dev` when env files are missing. */
+export const DEV_API_URL =
+  "https://ppm-dev-func-x32hrp.azurewebsites.net/api";
+
 const ENV_DEFAULTS = {
   local: {
     apiUrl: "http://localhost:7071/api",
     defaultHouseholdId: "local-household",
   },
   development: {
-    apiUrl: "https://YOUR-DEV-FUNCTION.azurewebsites.net/api",
+    apiUrl: DEV_API_URL,
     defaultHouseholdId: "dev-household",
   },
   production: {
@@ -20,10 +24,12 @@ const ENV_DEFAULTS = {
 
 function parseAppEnv(): AppEnv {
   // Do not use NODE_ENV — Next.js sets it to "development" during `next dev`.
-  const raw = (process.env.NEXT_PUBLIC_APP_ENV ?? "local").toLowerCase();
+  // Default to development (Azure dev API) so pages work without a local Function App.
+  const raw = (process.env.NEXT_PUBLIC_APP_ENV ?? "development").toLowerCase();
   if (raw === "development" || raw === "dev") return "development";
   if (raw === "production" || raw === "prod") return "production";
-  return "local";
+  if (raw === "local") return "local";
+  return "development";
 }
 
 function resolveDefaultHouseholdId(

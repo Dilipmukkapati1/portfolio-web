@@ -3,7 +3,9 @@ import {
   ArrowLeftRight,
   Calculator,
   LayoutDashboard,
+  LineChart,
   Link,
+  PenTool,
   Settings,
   TrendingUp,
   Users,
@@ -13,6 +15,8 @@ import type { NAV_ITEMS } from "@/lib/constants";
 
 const iconMap: Record<string, LucideIcon> = {
   LayoutDashboard,
+  LineChart,
+  PenTool,
   Wallet,
   TrendingUp,
   ArrowLeftRight,

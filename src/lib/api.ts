@@ -183,6 +183,25 @@ export const api = {
       `/analytics/dashboard${q ? `?${q}` : ""}`
     );
   },
+  getArchitect: (params?: { search?: string }) => {
+    const q = new URLSearchParams();
+    if (params?.search) q.set("search", params.search);
+    const query = q.toString();
+    return apiFetch<Record<string, unknown>>(
+      `/architect${query ? `?${query}` : ""}`
+    );
+  },
+  updateArchitectPlan: (body: unknown) =>
+    apiFetch<Record<string, unknown>>("/architect/plan", {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
+  getInstrumentAnalysis: (symbol: string, period: "quarterly" | "yearly") => {
+    const q = new URLSearchParams({ period });
+    return apiFetch<Record<string, unknown>>(
+      `/analyzer/${encodeURIComponent(symbol)}/instrument-analysis?${q}`
+    );
+  },
   getIntegrationsStatus: () =>
     apiFetch<{
       simplefin: {

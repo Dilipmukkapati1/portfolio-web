@@ -183,9 +183,13 @@ export const api = {
       `/analytics/dashboard${q ? `?${q}` : ""}`
     );
   },
-  getArchitect: (params?: { search?: string }) => {
+  getArchitect: (params?: {
+    search?: string;
+    timeframe?: "1d" | "1w" | "1m";
+  }) => {
     const q = new URLSearchParams();
     if (params?.search) q.set("search", params.search);
+    if (params?.timeframe) q.set("timeframe", params.timeframe);
     const query = q.toString();
     return apiFetch<Record<string, unknown>>(
       `/architect${query ? `?${query}` : ""}`

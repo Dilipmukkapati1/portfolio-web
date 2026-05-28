@@ -9,7 +9,7 @@ function mix(a: number, b: number, t: number): number {
   return Math.round(a + (b - a) * t);
 }
 
-/** Maps performance % to a red → green heat color (matches market heatmap legend). */
+/** Maps performance % to a red → green heat color. */
 export function performanceToHeatColor(
   performance: number,
   min = PERF_COLOR_MIN,
@@ -18,16 +18,10 @@ export function performanceToHeatColor(
   const clamped = clamp(performance, min, max);
   if (clamped >= 0) {
     const t = max > 0 ? clamped / max : 0;
-    const r = mix(22, 34, t);
-    const g = mix(101, 197, t);
-    const b = mix(52, 94, t);
-    return `rgb(${r}, ${g}, ${b})`;
+    return `rgb(${mix(22, 34, t)}, ${mix(101, 197, t)}, ${mix(52, 94, t)})`;
   }
   const t = min < 0 ? clamped / min : 0;
-  const r = mix(127, 220, t);
-  const g = mix(29, 38, t);
-  const b = mix(29, 38, t);
-  return `rgb(${r}, ${g}, ${b})`;
+  return `rgb(${mix(127, 220, t)}, ${mix(29, 38, t)}, ${mix(29, 38, t)})`;
 }
 
 export function formatSignedPercent(value: number, decimals = 2): string {

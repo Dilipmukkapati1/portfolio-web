@@ -4,25 +4,30 @@ Next.js 15 frontend for Personal Portfolio Management (Azure Static Web Apps).
 
 ## Run locally
 
-**Default (`npm run dev`)** — uses the **deployed dev API** via `.env.development` (Architect, Analyzer, and holdings work without starting portfolio-api locally).
+Pick an API target:
 
-If you have an old `.env.local` pointing at `localhost:7071`, update it:
+| Command | API | Household |
+| ------- | --- | --------- |
+| `npm run dev` | Azure dev (`ppm-dev-func-*.azurewebsites.net`) | `dev-household` |
+| `npm run dev:local` | Local (`localhost:7071`) | `local-household` |
 
-```bash
-cp env/local-against-dev.env.example .env.local
-npm run dev
-```
+`npm run dev` is the default for UI work — no local Function App required.  
+`npm run dev:local` requires portfolio-api running (`cd ../portfolio-api && npm start`).
 
-**Against local API** (portfolio-api on port 7071):
+Both commands pin the web app to **port 3000** (required for Azure dev CORS).
+
+On first run, `predev` creates `.env.local` from `env/azure-dev.env.example` with auth credentials only.
 
 ```bash
 npm install
-npm run dev:local-api
+npm run dev          # Azure dev API
+# or
+npm run dev:local    # local portfolio-api
 ```
 
-Use `dev-household` when calling the dev Function App — SimpleFIN data is stored there, not `local-household`.
+Sign in at http://localhost:3000 with **admin** / **portfolio** (or values from `.env.local`).
 
-Open http://localhost:3000 and sign in with **admin** / **portfolio** (or values from `AUTH_USERNAME` / `AUTH_PASSWORD` in `.env.local`).
+**Note:** SimpleFIN data on the dev API lives under `dev-household`, not `local-household`.
 
 ## Deploy (Azure)
 

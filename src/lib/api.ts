@@ -79,8 +79,8 @@ async function apiFetch<T>(
       const apiUrl = getApiUrl();
       const hint =
         apiUrl.includes("localhost") || apiUrl.includes("127.0.0.1")
-          ? " Start portfolio-api on port 7071, or run: cp env/local-against-dev.env.example .env.local && npm run dev"
-          : " Check your network and that the Function App is running.";
+          ? " Start portfolio-api (cd ../portfolio-api && npm start), or run: npm run dev:azure"
+          : " Check network and Function App status. Use npm run dev (port 3000) — Azure dev CORS blocks other localhost ports.";
       throw new ApiError(
         "Cannot reach the API at " + apiUrl + "." + hint,
         0,
@@ -185,29 +185,6 @@ export const api = {
       `/analytics/dashboard${q ? `?${q}` : ""}`
     );
   },
-  getArchitect: (params?: {
-    search?: string;
-    timeframe?: "1d" | "1w" | "1m";
-  }) => {
-    const q = new URLSearchParams();
-    if (params?.search) q.set("search", params.search);
-    if (params?.timeframe) q.set("timeframe", params.timeframe);
-    const query = q.toString();
-    return apiFetch<Record<string, unknown>>(
-      `/architect${query ? `?${query}` : ""}`
-    );
-  },
-  updateArchitectPlan: (body: unknown) =>
-    apiFetch<Record<string, unknown>>("/architect/plan", {
-      method: "PUT",
-      body: JSON.stringify(body),
-    }),
-  getInstrumentAnalysis: (symbol: string, period: "quarterly" | "yearly") => {
-    const q = new URLSearchParams({ period });
-    return apiFetch<Record<string, unknown>>(
-      `/analyzer/${encodeURIComponent(symbol)}/instrument-analysis?${q}`
-    );
-  },
   getIntegrationsStatus: () =>
     apiFetch<{
       simplefin: {
@@ -295,5 +272,40 @@ export const api = {
         method: "POST",
         body: JSON.stringify(body ?? {}),
       }
+    ),
+  getInvestmentPlanSummary: () =>
+    apiFetch<{
+      privacyMode: "locked" | "unlocked";
+      valuesUnlocked: boolean;
+      summary: import("@portfolio/contracts").HouseholdPlanSummary;
+    }>("/investment-plan/summary"),
+  getInvestmentPlanAllocation: () =>
+    apiFetch<{
+      privacyMode: "locked" | "unlocked";
+      valuesUnlocked: boolean;
+      netWorth: number;
+      actualTotalDollars: number | null;
+      classes: import("@portfolio/contracts").AllocationClassRollup[];
+    }>("/investment-plan/allocation"),
+  getInvestmentPlan: () =>
+    apiFetch<{ plan: import("@portfolio/contracts").InvestmentPlan }>(
+      "/investment-plan"
+    ),
+  updateInvestmentPlan: (instruments: unknown[]) =>
+    apiFetch<{
+      plan: import("@portfolio/contracts").InvestmentPlan;
+      summary: import("@portfolio/contracts").HouseholdPlanSummary;
+      warnings?: string[];
+    }>("/investment-plan", {
+      method: "PUT",
+      body: JSON.stringify({ instruments }),
+    }),
+  searchInstruments: (q: string, limit = 8) =>
+    apiFetch<{ results: import("@portfolio/contracts").InstrumentSearchResult[] }>(
+      `/instruments/search?q=${encodeURIComponent(q)}&limit=${limit}`
+    ),
+  getInstrumentProfile: (ticker: string) =>
+    apiFetch<{ profile: import("@portfolio/contracts").FundProfile }>(
+      `/instruments/${encodeURIComponent(ticker)}/profile`
     ),
 };

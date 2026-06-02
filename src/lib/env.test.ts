@@ -1,5 +1,5 @@
 import { describe, expect, it, afterEach } from "vitest";
-import { getWebEnv } from "./env.js";
+import { describeApiTarget, getWebEnv } from "./env.js";
 
 describe("getWebEnv", () => {
   afterEach(() => {
@@ -35,5 +35,14 @@ describe("getWebEnv", () => {
       "https://ppm-dev-func-x32hrp.azurewebsites.net/api";
     process.env.NEXT_PUBLIC_DEFAULT_HOUSEHOLD_ID = "local-household";
     expect(getWebEnv().defaultHouseholdId).toBe("dev-household");
+  });
+
+  it("describes API target from URL", () => {
+    expect(describeApiTarget("http://localhost:7071/api")).toBe(
+      "Local (portfolio-api)"
+    );
+    expect(
+      describeApiTarget("https://ppm-dev-func-x32hrp.azurewebsites.net/api")
+    ).toBe("Azure dev");
   });
 });

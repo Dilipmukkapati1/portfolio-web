@@ -7,6 +7,21 @@ export const DEV_API_HOST_FRAGMENT = "ppm-dev-func";
 export const DEV_API_URL =
   "https://ppm-dev-func-x32hrp.azurewebsites.net/api";
 
+export function isLocalApiUrl(apiUrl: string): boolean {
+  return (
+    apiUrl.includes("localhost") ||
+    apiUrl.includes("127.0.0.1") ||
+    apiUrl.startsWith("http://[::1]")
+  );
+}
+
+export function describeApiTarget(apiUrl: string): string {
+  if (isLocalApiUrl(apiUrl)) return "Local (portfolio-api)";
+  if (apiUrl.includes(DEV_API_HOST_FRAGMENT)) return "Azure dev";
+  if (apiUrl.includes("azurewebsites.net")) return "Azure";
+  return "Custom";
+}
+
 const ENV_DEFAULTS = {
   local: {
     apiUrl: "http://localhost:7071/api",
@@ -71,6 +86,8 @@ export function getWebEnv() {
     appEnv,
     apiUrl,
     defaultHouseholdId,
+    apiTarget: describeApiTarget(apiUrl),
+    isLocalApi: isLocalApiUrl(apiUrl),
   };
 }
 

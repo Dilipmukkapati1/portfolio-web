@@ -18,6 +18,7 @@ export default function TaxPage() {
   const [taxProfile, setTaxProfile] = useState<TaxProfile | null>(null);
   const [strategies, setStrategies] = useState<Array<Record<string, unknown>>>([]);
   const [loading, setLoading] = useState(false);
+  const [estimating, setEstimating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const taxYear =
@@ -52,7 +53,7 @@ export default function TaxPage() {
       showUnlockDialog();
       return;
     }
-    setLoading(true);
+    setEstimating(true);
     setError(null);
     try {
       const result = await api.recomputeTaxProfile(taxYear, {
@@ -64,7 +65,7 @@ export default function TaxPage() {
     } catch (e) {
       setError(e instanceof Error ? e.message : "Estimate failed");
     } finally {
-      setLoading(false);
+      setEstimating(false);
     }
   }
 
@@ -104,10 +105,10 @@ export default function TaxPage() {
         <CardContent className="space-y-4">
           <Button
             onClick={() => void runEstimate()}
-            disabled={loading || !household}
+            disabled={loading || estimating || !household}
             className="min-h-11 w-full sm:w-auto"
           >
-            {loading
+            {estimating
               ? "Calculating…"
               : isUnlocked
                 ? "Recalculate from members"

@@ -102,6 +102,10 @@ export default function ConnectionsPage() {
 
   async function handleSimplefinSync() {
     setSimplefinSyncing(true);
+    toast({
+      title: "Syncing SimpleFIN",
+      description: "Fetching accounts and transactions. This may take a minute.",
+    });
     try {
       const result = (await api.syncSimplefin()) as {
         message?: string;
@@ -130,6 +134,10 @@ export default function ConnectionsPage() {
 
   async function handleSnaptradeSync() {
     setSnaptradeSyncing(true);
+    toast({
+      title: "Syncing SnapTrade",
+      description: "Fetching holdings. This may take a minute.",
+    });
     try {
       const result = (await api.syncSnaptrade()) as {
         message?: string;

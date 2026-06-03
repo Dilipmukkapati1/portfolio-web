@@ -1,7 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { LogOut, User } from "lucide-react";
+import { Loader2, LogOut, User } from "lucide-react";
 import { getClientDisplayUser } from "@/lib/simple-auth";
 import { getInitials } from "@/lib/utils";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -21,12 +22,18 @@ interface UserNavProps {
 
 export function UserNav({ compact }: UserNavProps) {
   const router = useRouter();
+  const [signingOut, setSigningOut] = useState(false);
   const { displayName, username } = getClientDisplayUser();
 
   async function signOut() {
-    await fetch("/api/auth/signout", { method: "POST" });
-    router.push("/login");
-    router.refresh();
+    setSigningOut(true);
+    try {
+      await fetch("/api/auth/signout", { method: "POST" });
+      router.push("/login");
+      router.refresh();
+    } finally {
+      setSigningOut(false);
+    }
   }
 
   return (
@@ -56,9 +63,13 @@ export function UserNav({ compact }: UserNavProps) {
           <User className="mr-2 h-4 w-4" />
           Profile
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={signOut}>
-          <LogOut className="mr-2 h-4 w-4" />
-          Sign out
+        <DropdownMenuItem onClick={signOut} disabled={signingOut}>
+          {signingOut ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <LogOut className="mr-2 h-4 w-4" />
+          )}
+          {signingOut ? "Signing out…" : "Sign out"}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

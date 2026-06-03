@@ -33,7 +33,7 @@ export function InvestmentPlanPage() {
     return "idle" as const;
   }, [state.lastSavedAt, state.saveError, state.saving]);
 
-  if (state.loading) {
+  if (state.loading && !state.plan) {
     return (
       <div className="mx-auto max-w-[1080px] space-y-6 p-3 sm:p-6">
         <Skeleton className="h-16 w-full" />
@@ -187,6 +187,7 @@ export function InvestmentPlanPage() {
         displayUnit={state.displayUnit}
         onDisplayUnitChange={state.setDisplayUnit}
         saveStatus={saveStatus}
+        refreshing={state.refreshing}
       />
 
       {summary.overAllocated && (

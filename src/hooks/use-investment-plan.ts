@@ -44,6 +44,7 @@ function useDebouncedEffect(
 export function useInvestmentPlan() {
   const { privacyVersion, isUnlocked } = usePrivacy();
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -72,9 +73,15 @@ export function useInvestmentPlan() {
   const userEditedPlan = useRef(false);
   const latestInstrumentsRef = useRef<PlannedInstrument[]>([]);
   const saveGenerationRef = useRef(0);
+  const hasLoaded = useRef(false);
 
-  const refetch = useCallback(async () => {
-    setLoading(true);
+  const refetch = useCallback(async (options?: { background?: boolean }) => {
+    const background = Boolean(options?.background && hasLoaded.current);
+    if (background) {
+      setRefreshing(true);
+    } else {
+      setLoading(true);
+    }
     setError(null);
     try {
       const [summaryRes, planRes, allocationRes] = await Promise.all([
@@ -88,15 +95,20 @@ export function useInvestmentPlan() {
       setNetWorth(allocationRes.netWorth);
       setActualTotalDollars(allocationRes.actualTotalDollars);
       userEditedPlan.current = false;
+      hasLoaded.current = true;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load investment plan");
     } finally {
-      setLoading(false);
+      if (background) {
+        setRefreshing(false);
+      } else {
+        setLoading(false);
+      }
     }
   }, []);
 
   useEffect(() => {
-    void refetch();
+    void refetch({ background: hasLoaded.current });
   }, [refetch, privacyVersion]);
 
   const resolveProfile = useCallback(
@@ -381,6 +393,7 @@ export function useInvestmentPlan() {
 
   return {
     loading,
+    refreshing,
     error,
     saving,
     saveError,

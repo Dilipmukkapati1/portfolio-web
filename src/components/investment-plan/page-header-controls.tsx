@@ -11,11 +11,13 @@ export function PageHeaderControls({
   displayUnit,
   onDisplayUnitChange,
   saveStatus,
+  refreshing,
 }: {
   netWorth: number;
   displayUnit: DisplayUnit;
   onDisplayUnitChange: (unit: DisplayUnit) => void;
   saveStatus?: "idle" | "saving" | "saved" | "error";
+  refreshing?: boolean;
 }) {
   const isMobile = useIsMobile();
 
@@ -76,6 +78,9 @@ export function PageHeaderControls({
           </div>
           <div className="flex items-center gap-4">
             {displayUnitToggle}
+            {refreshing && (
+              <p className="text-xs text-muted-foreground">Updating…</p>
+            )}
             {saveStatus && saveStatus !== "idle" && (
               <p
                 className={cn(

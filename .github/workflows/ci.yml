@@ -61,22 +61,6 @@ jobs:
           repository: Dilipmukkapati1/portfolio-contracts
           path: portfolio-contracts
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-
-      - name: Build portfolio-contracts for SWA Oryx
-        run: npm ci && npm run build
-        working-directory: portfolio-contracts
-
-      - name: Install web dependencies for SWA Oryx
-        run: |
-          npm install --no-audit --no-fund --install-links
-          # SWA zip deploy cannot follow file: symlinks outside the app folder.
-          rm -rf node_modules/@portfolio/contracts
-          cp -R ../portfolio-contracts node_modules/@portfolio/contracts
-        working-directory: portfolio-web
-
       - name: Deploy to Azure Static Web Apps
         uses: Azure/static-web-apps-deploy@v1
         with:
@@ -86,6 +70,16 @@ jobs:
           app_location: portfolio-web
           api_location: ""
           output_location: ""
+          app_build_command: >-
+            cd ../portfolio-contracts && npm ci && npm run build &&
+            cd ../portfolio-web &&
+            npm ci --install-links &&
+            rm -rf node_modules/@portfolio/contracts &&
+            cp -R ../portfolio-contracts node_modules/@portfolio/contracts &&
+            npm run build
+          api_build_command: >-
+            rm -rf node_modules/@portfolio/contracts &&
+            cp -R ../../portfolio-contracts node_modules/@portfolio/contracts
         env:
           NEXT_PUBLIC_API_URL: ${{ env.NEXT_PUBLIC_API_URL }}
           NEXT_PUBLIC_APP_ENV: ${{ env.NEXT_PUBLIC_APP_ENV }}

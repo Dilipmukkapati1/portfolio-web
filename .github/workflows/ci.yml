@@ -70,7 +70,11 @@ jobs:
         working-directory: portfolio-contracts
 
       - name: Install web dependencies for SWA Oryx
-        run: npm install --no-audit --no-fund
+        run: |
+          npm install --no-audit --no-fund --install-links
+          # SWA zip deploy cannot follow file: symlinks outside the app folder.
+          rm -rf node_modules/@portfolio/contracts
+          cp -R ../portfolio-contracts node_modules/@portfolio/contracts
         working-directory: portfolio-web
 
       - name: Deploy to Azure Static Web Apps

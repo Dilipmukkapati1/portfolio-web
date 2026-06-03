@@ -7,6 +7,7 @@ export const NAV_ITEMS = [
   { label: "Holdings", href: "/holdings", icon: "TrendingUp" },
   { label: "Financial Plan", href: "/financial-plan", icon: "Target" },
   { label: "Transactions", href: "/transactions", icon: "ArrowLeftRight" },
+  { label: "Expense Planner", href: "/expense-planner", icon: "Receipt" },
   { label: "Tax", href: "/tax", icon: "Calculator" },
   { label: "Connections", href: "/connections", icon: "Link" },
   { label: "Household", href: "/household", icon: "Users" },

@@ -162,15 +162,13 @@ export const api = {
   },
   getTransactionSummary: (params: Record<string, string>) => {
     const q = new URLSearchParams(params).toString();
-    return apiFetch<{
-      privacyMode?: "locked" | "unlocked";
-      valuesUnlocked?: boolean;
-      totalCredits?: number;
-      totalSpend?: number;
-      spendByCategory?: Record<string, number>;
-      spendByCategoryPercent?: Record<string, number>;
-      transactionCount: number;
-    }>(`/transactions/summary?${q}`);
+    return apiFetch<
+      import("@portfolio/contracts").TransactionSummaryResponse & {
+        privacyMode?: "locked" | "unlocked";
+        valuesUnlocked?: boolean;
+        spendByAccountPercent?: Record<string, number>;
+      }
+    >(`/transactions/summary?${q}`);
   },
   getHoldings: () =>
     apiFetch<{
@@ -308,4 +306,25 @@ export const api = {
     apiFetch<{ profile: import("@portfolio/contracts").FundProfile }>(
       `/instruments/${encodeURIComponent(ticker)}/profile`
     ),
+  getExpensePlan: () =>
+    apiFetch<{ plan: import("@portfolio/contracts").ExpensePlan }>(
+      "/expense-plan"
+    ),
+  putExpensePlan: (body: import("@portfolio/contracts").UpsertExpensePlanRequest) =>
+    apiFetch<{ plan: import("@portfolio/contracts").ExpensePlan }>(
+      "/expense-plan",
+      { method: "PUT", body: JSON.stringify(body) }
+    ),
+  applyExpenseMappingRules: (
+    body?: import("@portfolio/contracts").ApplyMappingRulesRequest
+  ) =>
+    apiFetch<import("@portfolio/contracts").ApplyMappingRulesResponse>(
+      "/expense-plan/mappings/apply",
+      { method: "POST", body: JSON.stringify(body ?? {}) }
+    ),
+  categorizeTransaction: (txnId: string, category: string) =>
+    apiFetch("/transactions/categorize", {
+      method: "POST",
+      body: JSON.stringify({ txnId, category }),
+    }),
 };

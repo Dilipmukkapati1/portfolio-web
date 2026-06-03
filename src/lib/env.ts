@@ -37,6 +37,15 @@ const ENV_DEFAULTS = {
   },
 } as const;
 
+/** Ignore CI misconfig (e.g. empty DEV_FUNCTION_APP_URL → "/api"). */
+function resolveApiUrl(appEnv: AppEnv, explicit?: string): string {
+  const trimmed = explicit?.trim();
+  if (trimmed && /^https?:\/\//i.test(trimmed)) {
+    return trimmed;
+  }
+  return ENV_DEFAULTS[appEnv].apiUrl;
+}
+
 function parseAppEnv(): AppEnv {
   // Do not use NODE_ENV — Next.js sets it to "development" during `next dev`.
   // Default to development (Azure dev API) so pages work without a local Function App.
@@ -74,8 +83,10 @@ export function getWebEnv() {
   const appEnv = parseAppEnv();
   const defaults = ENV_DEFAULTS[appEnv];
 
-  const apiUrl =
-    process.env.NEXT_PUBLIC_API_URL?.trim() || defaults.apiUrl;
+  const apiUrl = resolveApiUrl(
+    appEnv,
+    process.env.NEXT_PUBLIC_API_URL
+  );
   const defaultHouseholdId = resolveDefaultHouseholdId(
     appEnv,
     apiUrl,

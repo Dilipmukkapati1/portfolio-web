@@ -24,6 +24,11 @@ describe("getWebEnv", () => {
     expect(getWebEnv().apiUrl).toBe("http://localhost:7071/api");
   });
 
+  it("ignores relative NEXT_PUBLIC_API_URL from a bad deploy", () => {
+    process.env.NEXT_PUBLIC_API_URL = "/api";
+    expect(getWebEnv().apiUrl).toContain("ppm-dev-func");
+  });
+
   it("uses dev-household when the dev API URL is set without an explicit household", () => {
     process.env.NEXT_PUBLIC_API_URL =
       "https://ppm-dev-func-x32hrp.azurewebsites.net/api";

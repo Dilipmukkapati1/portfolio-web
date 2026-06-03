@@ -41,26 +41,28 @@ export function ProjectionToolbar({
         </Button>
       ))}
       <span className="mx-1 h-4 w-px bg-border" aria-hidden />
-      <Button
-        type="button"
-        size="sm"
-        variant={reinvestDividends ? "secondary" : "ghost"}
-        title="Reinvest dividends (DRIP)"
-        className="min-h-11"
-        onClick={() => onReinvestDividendsChange(true)}
-      >
-        DRIP
-      </Button>
-      <Button
-        type="button"
-        size="sm"
-        variant={!reinvestDividends ? "secondary" : "ghost"}
-        title="Price return only"
-        className="min-h-11"
-        onClick={() => onReinvestDividendsChange(false)}
-      >
-        No DRIP
-      </Button>
+      <div className="inline-flex shrink-0 items-center gap-1.5">
+        <Button
+          type="button"
+          size="sm"
+          variant={reinvestDividends ? "secondary" : "ghost"}
+          title="Reinvest dividends (DRIP)"
+          className="min-h-11 whitespace-nowrap"
+          onClick={() => onReinvestDividendsChange(true)}
+        >
+          DRIP
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant={!reinvestDividends ? "secondary" : "ghost"}
+          title="Price return only"
+          className="min-h-11 whitespace-nowrap"
+          onClick={() => onReinvestDividendsChange(false)}
+        >
+          No DRIP
+        </Button>
+      </div>
     </div>
   );
 }

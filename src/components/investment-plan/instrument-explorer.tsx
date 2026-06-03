@@ -96,17 +96,19 @@ export function InstrumentExplorer({
     explorerProfile &&
     compoundRateForProjection(explorerProfile, projectionRate, reinvestDividends);
 
-  return (
-    <Card className="shadow-none">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-        <p className="font-semibold leading-none">Explore</p>
-        {explorerProfile && (
-          <Badge variant="secondary" className="font-normal">
-            {explorerProfile.ticker}
-          </Badge>
-        )}
-      </CardHeader>
-      <CardContent className="space-y-3">
+  const header = (
+    <div className="flex flex-row items-center justify-between space-y-0 pb-3">
+      <p className="font-semibold leading-none">Explore</p>
+      {explorerProfile && (
+        <Badge variant="secondary" className="font-normal">
+          {explorerProfile.ticker}
+        </Badge>
+      )}
+    </div>
+  );
+
+  const content = (
+    <div className="space-y-3">
         <div
           className={cn(
             "grid w-full min-w-0 items-end gap-2",
@@ -299,7 +301,7 @@ export function InstrumentExplorer({
           onReinvestDividendsChange={onReinvestDividendsChange}
         />
 
-        {explorerProjection && allocationPrincipal > 0 ? (
+        {explorerProjection && allocationPrincipal > 0 && (
           <div className="space-y-3">
             <ProjectionLineChart
               categories={explorerProjection.categories}
@@ -318,15 +320,30 @@ export function InstrumentExplorer({
             </p>
             <HorizonTiles milestones={explorerProjection.milestones} variant="explorer" />
           </div>
-        ) : (
-          <div className="rounded-md border border-primary/20 bg-primary/5 px-4 py-3">
-            <p className="text-sm font-medium">Enter allocation %</p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Set a target % of net worth above to preview future value on the chart.
-            </p>
-          </div>
         )}
-      </CardContent>
+    </div>
+  );
+
+  if (isMobile) {
+    return (
+      <div>
+        {header}
+        {content}
+      </div>
+    );
+  }
+
+  return (
+    <Card className="shadow-none">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+        <p className="font-semibold leading-none">Explore</p>
+        {explorerProfile && (
+          <Badge variant="secondary" className="font-normal">
+            {explorerProfile.ticker}
+          </Badge>
+        )}
+      </CardHeader>
+      <CardContent>{content}</CardContent>
     </Card>
   );
 }

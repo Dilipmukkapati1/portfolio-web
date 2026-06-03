@@ -12,12 +12,15 @@ import type {
   ReturnPeriod,
 } from "@portfolio/contracts";
 import {
+  buildAllocationSegments,
   computeInstrumentProjection,
   computePlanProjection,
   inferAssetClassFromName,
   instrumentDollars,
   instrumentPercent,
+  sumByClass,
   tickerFromName,
+  type AssetClass,
 } from "@portfolio/contracts";
 import { api } from "@/lib/api";
 import { usePrivacy } from "@/components/PrivacyProvider";
@@ -66,8 +69,9 @@ export function useInvestmentPlan() {
 
   const [profile, setProfile] = useState<FundProfile | null>(null);
   const profileCache = useRef(new Map<string, FundProfile>());
-  const skipNextSave = useRef(true);
   const userEditedPlan = useRef(false);
+  const latestInstrumentsRef = useRef<PlannedInstrument[]>([]);
+  const saveGenerationRef = useRef(0);
 
   const refetch = useCallback(async () => {
     setLoading(true);
@@ -83,7 +87,6 @@ export function useInvestmentPlan() {
       setAllocation(allocationRes.classes);
       setNetWorth(allocationRes.netWorth);
       setActualTotalDollars(allocationRes.actualTotalDollars);
-      skipNextSave.current = true;
       userEditedPlan.current = false;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load investment plan");
@@ -128,6 +131,28 @@ export function useInvestmentPlan() {
   }, [explorerName, resolveProfile]);
 
   const instruments = plan?.instruments ?? [];
+
+  useEffect(() => {
+    latestInstrumentsRef.current = instruments;
+  }, [instruments]);
+
+  const displayAllocation = useMemo(() => {
+    if (!plan || allocation.length === 0) return allocation;
+    const actualByClass = Object.fromEntries(
+      allocation.map((row) => [row.assetClass, row.actualDollars ?? 0])
+    ) as Record<AssetClass, number>;
+    const actualTotal = allocation.reduce(
+      (sum, row) => sum + (row.actualDollars ?? 0),
+      0
+    );
+    const planByClass = sumByClass(plan.instruments, netWorth);
+    return buildAllocationSegments(
+      planByClass,
+      actualByClass,
+      actualTotal,
+      isUnlocked
+    );
+  }, [allocation, isUnlocked, netWorth, plan]);
 
   useEffect(() => {
     for (const item of instruments) {
@@ -230,6 +255,7 @@ export function useInvestmentPlan() {
     const parsed = Number.parseFloat(explorerAllocPct);
     if (!explorerName.trim() || !Number.isFinite(parsed) || parsed <= 0) return;
 
+    const updatingExisting = selectedInstrumentId !== null;
     const ticker = tickerFromName(explorerName);
     const assetClass = inferAssetClassFromName(explorerName);
     const entry: PlannedInstrument = {
@@ -243,30 +269,43 @@ export function useInvestmentPlan() {
     };
 
     updatePlanInstruments((prev) => {
-      const withoutTicker = prev.filter(
-        (item) =>
-          tickerFromName(item.name).toUpperCase() !== ticker.toUpperCase() ||
-          item.id === entry.id
-      );
-      const existingIdx = withoutTicker.findIndex((i) => i.id === entry.id);
-      if (existingIdx >= 0) {
-        const next = [...withoutTicker];
-        next[existingIdx] = { ...entry, sortOrder: next[existingIdx]!.sortOrder };
+      if (updatingExisting) {
+        const existingIdx = prev.findIndex((i) => i.id === entry.id);
+        if (existingIdx < 0) return prev;
+        const next = [...prev];
+        next[existingIdx] = {
+          ...entry,
+          sortOrder: next[existingIdx]!.sortOrder,
+        };
         return next;
       }
-      const dupIdx = withoutTicker.findIndex(
+
+      const dupIdx = prev.findIndex(
         (i) => tickerFromName(i.name).toUpperCase() === ticker.toUpperCase()
       );
       if (dupIdx >= 0) {
-        const next = [...withoutTicker];
-        next[dupIdx] = { ...entry, id: next[dupIdx]!.id, sortOrder: next[dupIdx]!.sortOrder };
+        const next = [...prev];
+        next[dupIdx] = {
+          ...entry,
+          id: next[dupIdx]!.id,
+          sortOrder: next[dupIdx]!.sortOrder,
+        };
         return next;
       }
-      return [...withoutTicker, entry];
+
+      return [
+        ...prev,
+        { ...entry, sortOrder: prev.length },
+      ];
     });
 
-    setSelectedInstrumentId(entry.id);
+    if (updatingExisting) {
+      setSelectedInstrumentId(entry.id);
+    } else {
+      clearExplorer();
+    }
   }, [
+    clearExplorer,
     explorerAllocPct,
     explorerName,
     instruments.length,
@@ -282,24 +321,56 @@ export function useInvestmentPlan() {
     [clearExplorer, selectedInstrumentId, updatePlanInstruments]
   );
 
+  const setExplorerNameWithMode = useCallback(
+    (name: string) => {
+      setExplorerName(name);
+      if (!selectedInstrumentId) return;
+      const selected = instruments.find((item) => item.id === selectedInstrumentId);
+      if (
+        selected &&
+        tickerFromName(selected.name).toUpperCase() !==
+          tickerFromName(name).toUpperCase()
+      ) {
+        setSelectedInstrumentId(null);
+      }
+    },
+    [instruments, selectedInstrumentId]
+  );
+
   useDebouncedEffect(
     () => {
       if (!plan || !userEditedPlan.current) return;
-      if (skipNextSave.current) {
-        skipNextSave.current = false;
-        return;
-      }
+
+      const generation = ++saveGenerationRef.current;
+      const instrumentsToSave = latestInstrumentsRef.current;
+
       setSaving(true);
       setSaveError(null);
       api
-        .updateInvestmentPlan(plan.instruments)
+        .updateInvestmentPlan(instrumentsToSave)
         .then((res) => {
+          if (generation !== saveGenerationRef.current) {
+            return undefined;
+          }
+          userEditedPlan.current = false;
           setPlan(res.plan);
           setSummary(res.summary);
           setLastSavedAt(res.plan.updatedAt);
           setSaving(false);
+          return api.getInvestmentPlanAllocation();
+        })
+        .then((allocationRes) => {
+          if (!allocationRes || generation !== saveGenerationRef.current) {
+            return;
+          }
+          setAllocation(allocationRes.classes);
+          setNetWorth(allocationRes.netWorth);
+          setActualTotalDollars(allocationRes.actualTotalDollars);
         })
         .catch((err) => {
+          if (generation !== saveGenerationRef.current) {
+            return;
+          }
           setSaveError(err instanceof Error ? err.message : "Save failed");
           setSaving(false);
         });
@@ -316,7 +387,7 @@ export function useInvestmentPlan() {
     lastSavedAt,
     summary,
     plan,
-    allocation,
+    allocation: displayAllocation,
     netWorth,
     actualTotalDollars,
     valuesUnlocked: isUnlocked,
@@ -327,7 +398,7 @@ export function useInvestmentPlan() {
     reinvestDividends,
     setReinvestDividends,
     explorerName,
-    setExplorerName,
+    setExplorerName: setExplorerNameWithMode,
     explorerAllocPct,
     setExplorerAllocPct,
     selectedInstrumentId,

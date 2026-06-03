@@ -8,74 +8,13 @@ import {
   formatAllocationAmount,
   formatCompactCurrency,
 } from "@/lib/investment-plan/format";
+import {
+  buildRingSegments,
+  MIN_SLICE_PERCENT,
+} from "@/lib/investment-plan/ring-segments";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { Button } from "@/components/ui/button";
 import { cn, formatPercent } from "@/lib/utils";
-
-const DONUT_SLICE_GAP_RAD = 0.022;
-
-function polar(cx: number, cy: number, r: number, angle: number) {
-  return { x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) };
-}
-
-function ringSegmentPath(
-  cx: number,
-  cy: number,
-  rInner: number,
-  rOuter: number,
-  start: number,
-  end: number
-): string {
-  const span = end - start;
-  if (span <= 0) return "";
-  if (span >= 2 * Math.PI - 1e-6) {
-    const mid = start + Math.PI;
-    return `${ringSegmentPath(cx, cy, rInner, rOuter, start, mid)} ${ringSegmentPath(cx, cy, rInner, rOuter, mid, end)}`;
-  }
-  const p0o = polar(cx, cy, rOuter, start);
-  const p1o = polar(cx, cy, rOuter, end);
-  const p1i = polar(cx, cy, rInner, end);
-  const p0i = polar(cx, cy, rInner, start);
-  const large = span > Math.PI ? 1 : 0;
-  return `M ${p0o.x} ${p0o.y} A ${rOuter} ${rOuter} 0 ${large} 1 ${p1o.x} ${p1o.y} L ${p1i.x} ${p1i.y} A ${rInner} ${rInner} 0 ${large} 0 ${p0i.x} ${p0i.y} Z`;
-}
-
-type RingSegment = {
-  d: string;
-  fill: string;
-  label: string;
-  midAngle: number;
-};
-
-function buildRingSegments(
-  cx: number,
-  cy: number,
-  rInner: number,
-  rOuter: number,
-  slices: { label: string; value: number; fill: string }[]
-): RingSegment[] {
-  const active = slices.filter((sl) => sl.value > 0.05);
-  const total = active.reduce((s, sl) => s + sl.value, 0);
-  if (total <= 0) return [];
-  const gapTotal = active.length * DONUT_SLICE_GAP_RAD;
-  const sweepBudget = Math.max(0, 2 * Math.PI - gapTotal);
-  let angle = -Math.PI / 2 + DONUT_SLICE_GAP_RAD / 2;
-  return active
-    .map((sl) => {
-      const sweep = (sl.value / total) * sweepBudget;
-      const start = angle;
-      const end = angle + sweep;
-      const midAngle = (start + end) / 2;
-      angle = end + DONUT_SLICE_GAP_RAD;
-      return {
-        d: ringSegmentPath(cx, cy, rInner, rOuter, start, end),
-        fill: sl.fill,
-        label: sl.label,
-        midAngle,
-      };
-    })
-    .filter((seg) => seg.d.length > 0);
-}
 
 function allocationDeltaTone(deltaPct: number): string {
   if (Math.abs(deltaPct) < 0.5) return "text-muted-foreground";
@@ -139,7 +78,7 @@ export function AllocationDonut({
     : undefined;
 
   const legendRows = segments.filter(
-    (s) => s.planPercent > 0.05 || s.actualPercent > 0.05
+    (s) => s.planPercent > MIN_SLICE_PERCENT || s.actualPercent > MIN_SLICE_PERCENT
   );
 
   if (loading) {
@@ -188,24 +127,6 @@ export function AllocationDonut({
           strokeWidth={1}
           strokeDasharray="3 4"
           opacity={0.7}
-        />
-        <circle
-          cx={cx}
-          cy={cy}
-          r={outerInner - 1}
-          fill="none"
-          className="stroke-border"
-          strokeWidth={6}
-          opacity={0.35}
-        />
-        <circle
-          cx={cx}
-          cy={cy}
-          r={innerOuter + 1}
-          fill="none"
-          className="stroke-border"
-          strokeWidth={6}
-          opacity={0.35}
         />
         {outerSegments.map((seg) => {
           const focused = focusedLabel === seg.label;

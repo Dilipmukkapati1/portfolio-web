@@ -1,12 +1,17 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { PageHeaderControls } from "./page-header-controls";
 import { AllocationDonut } from "./allocation-donut";
 import { PortfolioOutlook } from "./portfolio-outlook";
 import { InstrumentExplorer } from "./instrument-explorer";
 import { HoldingsList } from "./holdings-list";
+import {
+  InvestmentPlanBottomNav,
+  type InvestmentPlanTab,
+} from "./investment-plan-bottom-nav";
+import { InvestmentPlanMobileSection } from "./investment-plan-mobile-section";
 import { useInvestmentPlan } from "@/hooks/use-investment-plan";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,6 +24,7 @@ import type { DisplayUnit } from "@portfolio/contracts";
 export function InvestmentPlanPage() {
   const state = useInvestmentPlan();
   const isMobile = useIsMobile();
+  const [mobileTab, setMobileTab] = useState<InvestmentPlanTab>("allocation");
 
   const saveStatus = useMemo(() => {
     if (state.saveError) return "error" as const;
@@ -63,88 +69,107 @@ export function InvestmentPlanPage() {
   const summary = state.summary!;
   const instruments = state.plan?.instruments ?? [];
 
-  const allocationCard = (
+  const allocationContent = (
+    <AllocationDonut
+      classes={state.allocation}
+      displayUnit={state.displayUnit}
+      netWorth={summary.netWorth}
+      valuesUnlocked={state.valuesUnlocked}
+      plannedTotalPercent={summary.plannedTotalPercent}
+      actualTotalDollars={state.actualTotalDollars}
+    />
+  );
+
+  const allocationCard = isMobile ? (
+    <InvestmentPlanMobileSection>
+      <p className="mb-3 font-semibold leading-none">Allocation by asset class</p>
+      {allocationContent}
+    </InvestmentPlanMobileSection>
+  ) : (
     <Card>
       <CardHeader className="pb-2">
         <p className="font-semibold leading-none">Allocation by asset class</p>
       </CardHeader>
-      <CardContent>
-        <AllocationDonut
-          classes={state.allocation}
-          displayUnit={state.displayUnit}
-          netWorth={summary.netWorth}
-          valuesUnlocked={state.valuesUnlocked}
-          plannedTotalPercent={summary.plannedTotalPercent}
-          actualTotalDollars={state.actualTotalDollars}
-        />
-      </CardContent>
+      <CardContent>{allocationContent}</CardContent>
     </Card>
   );
 
-  const portfolioOutlookCard = (
-    <PortfolioOutlook
-      portfolioProjection={state.portfolioProjection}
-      plannedTotalDollars={summary.plannedTotalDollars}
-      plannedTotalPercent={summary.plannedTotalPercent}
-      instrumentCount={summary.instrumentCount}
-      unallocatedDollars={summary.unallocatedDollars}
-      unallocatedPercent={summary.unallocatedPercent}
-      projectionRate={state.projectionRate}
-      onProjectionRateChange={state.setProjectionRate}
-      reinvestDividends={state.reinvestDividends}
-      onReinvestDividendsChange={state.setReinvestDividends}
-    />
+  const portfolioOutlookProps = {
+    portfolioProjection: state.portfolioProjection,
+    plannedTotalDollars: summary.plannedTotalDollars,
+    plannedTotalPercent: summary.plannedTotalPercent,
+    instrumentCount: summary.instrumentCount,
+    unallocatedDollars: summary.unallocatedDollars,
+    unallocatedPercent: summary.unallocatedPercent,
+    projectionRate: state.projectionRate,
+    onProjectionRateChange: state.setProjectionRate,
+    reinvestDividends: state.reinvestDividends,
+    onReinvestDividendsChange: state.setReinvestDividends,
+  } as const;
+
+  const portfolioOutlookCard = isMobile ? (
+    <InvestmentPlanMobileSection>
+      <PortfolioOutlook {...portfolioOutlookProps} embedded />
+    </InvestmentPlanMobileSection>
+  ) : (
+    <PortfolioOutlook {...portfolioOutlookProps} />
   );
 
-  const planByInstrumentCard = (
+  const planByInstrumentBody = (
+    <>
+      <InstrumentExplorer
+        explorerName={state.explorerName}
+        onExplorerNameChange={state.setExplorerName}
+        explorerAllocPct={state.explorerAllocPct}
+        onExplorerAllocPctChange={state.setExplorerAllocPct}
+        onAddOrUpdate={state.addOrUpdateFromExplorer}
+        onClear={state.clearExplorer}
+        profile={state.profile}
+        explorerProjection={state.explorerProjection}
+        projectionRate={state.projectionRate}
+        onProjectionRateChange={state.setProjectionRate}
+        reinvestDividends={state.reinvestDividends}
+        onReinvestDividendsChange={state.setReinvestDividends}
+        inferredAssetClass={state.inferredAssetClass}
+        netWorth={summary.netWorth}
+      />
+
+      <div className="space-y-2">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-sm font-semibold">Holdings</p>
+          <p className="text-sm text-muted-foreground">
+            {instruments.length} · {formatCompactCurrency(summary.plannedTotalDollars)}
+          </p>
+        </div>
+        <HoldingsList
+          instruments={instruments}
+          allocation={state.allocation}
+          netWorth={summary.netWorth}
+          displayUnit={state.displayUnit}
+          valuesUnlocked={state.valuesUnlocked}
+          selectedInstrumentId={state.selectedInstrumentId}
+          onSelect={state.selectInstrument}
+          onRemove={state.removeInstrument}
+          saving={state.saving}
+          profileForInstrument={state.profileForInstrument}
+        />
+      </div>
+    </>
+  );
+
+  const planByInstrumentCard = isMobile ? (
+    <InvestmentPlanMobileSection className="space-y-4">
+      {planByInstrumentBody}
+    </InvestmentPlanMobileSection>
+  ) : (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <p className="font-semibold leading-none">Plan by instrument</p>
-        {!isMobile && (
-          <p className="text-sm text-muted-foreground">
-            {instruments.length} instruments
-          </p>
-        )}
+        <p className="text-sm text-muted-foreground">
+          {instruments.length} instruments
+        </p>
       </CardHeader>
-      <CardContent className="space-y-4 sm:space-y-[18px]">
-        <InstrumentExplorer
-          explorerName={state.explorerName}
-          onExplorerNameChange={state.setExplorerName}
-          explorerAllocPct={state.explorerAllocPct}
-          onExplorerAllocPctChange={state.setExplorerAllocPct}
-          onAddOrUpdate={state.addOrUpdateFromExplorer}
-          onClear={state.clearExplorer}
-          profile={state.profile}
-          explorerProjection={state.explorerProjection}
-          projectionRate={state.projectionRate}
-          onProjectionRateChange={state.setProjectionRate}
-          reinvestDividends={state.reinvestDividends}
-          onReinvestDividendsChange={state.setReinvestDividends}
-          inferredAssetClass={state.inferredAssetClass}
-          netWorth={summary.netWorth}
-        />
-
-        <div className="space-y-2">
-          <div className="flex items-center justify-between gap-2">
-            <p className="text-sm font-semibold">Holdings</p>
-            <p className="text-sm text-muted-foreground">
-              {instruments.length} · {formatCompactCurrency(summary.plannedTotalDollars)}
-            </p>
-          </div>
-          <HoldingsList
-            instruments={instruments}
-            allocation={state.allocation}
-            netWorth={summary.netWorth}
-            displayUnit={state.displayUnit}
-            valuesUnlocked={state.valuesUnlocked}
-            selectedInstrumentId={state.selectedInstrumentId}
-            onSelect={state.selectInstrument}
-            onRemove={state.removeInstrument}
-            saving={state.saving}
-            profileForInstrument={state.profileForInstrument}
-          />
-        </div>
-      </CardContent>
+      <CardContent className="space-y-[18px]">{planByInstrumentBody}</CardContent>
     </Card>
   );
 
@@ -154,7 +179,7 @@ export function InvestmentPlanPage() {
       animate={{ opacity: 1, y: 0 }}
       className={cn(
         "mx-auto w-full max-w-[1080px] space-y-4 sm:space-y-6",
-        isMobile ? "p-3" : "p-6"
+        isMobile ? "p-3 pb-[calc(4.5rem+env(safe-area-inset-bottom))]" : "p-6"
       )}
     >
       <PageHeaderControls
@@ -173,11 +198,14 @@ export function InvestmentPlanPage() {
       )}
 
       {isMobile ? (
-        <div className="flex flex-col gap-3.5 sm:gap-4">
-          {allocationCard}
-          {portfolioOutlookCard}
-          {planByInstrumentCard}
-        </div>
+        <>
+          <div role="tabpanel" aria-label={mobileTab}>
+            {mobileTab === "allocation" && allocationCard}
+            {mobileTab === "plan" && planByInstrumentCard}
+            {mobileTab === "outlook" && portfolioOutlookCard}
+          </div>
+          <InvestmentPlanBottomNav active={mobileTab} onChange={setMobileTab} />
+        </>
       ) : (
         <div className="grid grid-cols-2 items-start gap-6">
           <div className="flex min-w-0 flex-col gap-6">

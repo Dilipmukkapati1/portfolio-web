@@ -54,13 +54,7 @@ export function PageHeaderControls({
 
   return (
     <div className="space-y-2.5">
-      <div className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Investment plan</h1>
-        <p className="text-sm text-muted-foreground">
-          Plan allocations by instrument; roll up to asset class. Compare target vs
-          executed portfolio.
-        </p>
-      </div>
+      <h1 className="text-2xl font-semibold tracking-tight">Investment plan</h1>
 
       {isMobile ? (
         <div className="space-y-2.5">

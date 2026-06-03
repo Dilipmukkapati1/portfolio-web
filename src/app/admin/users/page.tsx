@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
+import { AdminUsersPageSkeleton } from "@/components/shared/page-skeletons";
 import { PageHeader } from "@/components/shared/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -25,12 +26,14 @@ import type { Profile } from "@/lib/types";
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<Profile[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetch("/api/admin/users")
       .then((r) => r.json())
       .then((d) => setUsers(d.users ?? []))
-      .catch(() => setUsers([]));
+      .catch(() => setUsers([]))
+      .finally(() => setLoading(false));
   }, []);
 
   async function updateRole(id: string, role: string) {
@@ -43,6 +46,14 @@ export default function AdminUsersPage() {
       const { user } = await res.json();
       setUsers((prev) => prev.map((u) => (u.id === id ? user : u)));
     }
+  }
+
+  if (loading) {
+    return (
+      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
+        <AdminUsersPageSkeleton />
+      </motion.div>
+    );
   }
 
   return (

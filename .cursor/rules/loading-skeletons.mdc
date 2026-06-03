@@ -1,0 +1,59 @@
+---
+description: Loading skeleton patterns for portfolio-web pages and components
+globs: portfolio-web/**/*.{tsx,ts}
+alwaysApply: false
+---
+
+# Loading Skeletons
+
+Every page or component that fetches API data must show a **layout-matched skeleton** on initial load — never blank content, `"Loading…"` text, or placeholder `"—"` values.
+
+## When to show skeletons
+
+| State | UI |
+|-------|-----|
+| Initial load (`loading && !data`) | Full page skeleton — early return before real content |
+| Background refresh (privacy unlock, refetch) | Keep content visible; show inline `"Updating…"` or overlay skeleton on the changing section |
+| Pagination / partial reload | Overlay skeleton on the affected section (table, list) |
+
+Use `useLayoutEffect` to set `loading = true` (and clear stale data) **before paint** when fetch triggers change — e.g. `privacyVersion`, route mount, household switch — so users never flash stale content between navigations.
+
+## Building blocks
+
+Reuse primitives from `@/components/shared/page-skeletons`:
+
+- `PageHeaderSkeleton`, `StatCardSkeleton`, `StatCardsSkeleton`
+- `TableSkeleton`, `ChartCardSkeleton`, `SummaryCardSkeleton`
+- `AccountTileSkeleton`, `ConnectionCardSkeleton`, `FormPanelSkeleton`
+
+Add a page-specific skeleton (e.g. `DashboardPageSkeleton`) when a route has a distinct layout. Compose from primitives — do not duplicate pulse markup. Match the real layout: same grid columns, Card wrappers, tab controls, pie+legend pairs, and table column counts.
+
+Base primitive: `@/components/ui/skeleton` (`animate-pulse bg-muted`).
+
+## Page pattern
+
+```tsx
+if (loading && !data) {
+  return (
+    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
+      <MyPageSkeleton />
+    </motion.div>
+  );
+}
+```
+
+Complex pages with custom hooks: distinguish `loading` (first fetch) from `refreshing` (background). Skeleton only on `loading && !plan`.
+
+## Do not
+
+- Use `"Loading…"` text as the primary loading indicator on pages
+- Show stat cards or tables with empty/`"—"` values while fetching
+- Use spinners for full-page loads (spinners are for buttons and inline actions)
+- Add Next.js `loading.tsx` for API-bound client pages — skeletons live in the page component
+
+## New pages checklist
+
+1. Create or reuse a page skeleton matching the final layout
+2. Early-return skeleton when `loading && !data`
+3. Handle background refresh without replacing the whole page
+4. Use `TableSkeleton` overlay for paginated tables

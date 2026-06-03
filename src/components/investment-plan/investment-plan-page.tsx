@@ -13,9 +13,9 @@ import {
 } from "./investment-plan-bottom-nav";
 import { InvestmentPlanMobileSection } from "./investment-plan-mobile-section";
 import { useInvestmentPlan } from "@/hooks/use-investment-plan";
+import { InvestmentPlanPageSkeleton } from "@/components/shared/page-skeletons";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
 import { formatCompactCurrency } from "@/lib/investment-plan/format";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { cn, formatPercent } from "@/lib/utils";
@@ -35,10 +35,9 @@ export function InvestmentPlanPage() {
 
   if (state.loading && !state.plan) {
     return (
-      <div className="mx-auto max-w-[1080px] space-y-6 p-3 sm:p-6">
-        <Skeleton className="h-16 w-full" />
-        <Skeleton className="h-64 w-full" />
-      </div>
+      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
+        <InvestmentPlanPageSkeleton />
+      </motion.div>
     );
   }
 

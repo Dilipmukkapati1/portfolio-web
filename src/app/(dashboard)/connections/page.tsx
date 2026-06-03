@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { ExternalLink, Link2, Loader2, RefreshCw } from "lucide-react";
+import { ConnectionsPageSkeleton } from "@/components/shared/page-skeletons";
 import { PageHeader } from "@/components/shared/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -39,6 +40,7 @@ export default function ConnectionsPage() {
   const [simplefinSyncing, setSimplefinSyncing] = useState(false);
   const [snaptradeSyncing, setSnaptradeSyncing] = useState(false);
   const [snaptradeConnecting, setSnaptradeConnecting] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
 
   const loadConnectionStatus = useCallback(async () => {
     setSimplefinStatus("loading");
@@ -55,6 +57,8 @@ export default function ConnectionsPage() {
     } catch {
       setSimplefinStatus("not_connected");
       setSnaptradeStatus("not_connected");
+    } finally {
+      setInitialLoading(false);
     }
   }, []);
 
@@ -186,6 +190,10 @@ export default function ConnectionsPage() {
       animate={{ opacity: 1, y: 0 }}
       className="space-y-6"
     >
+      {initialLoading ? (
+        <ConnectionsPageSkeleton />
+      ) : (
+        <>
       <PageHeader
         title="Connections"
         description="Link external financial data providers"
@@ -368,6 +376,8 @@ export default function ConnectionsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+        </>
+      )}
     </motion.div>
   );
 }

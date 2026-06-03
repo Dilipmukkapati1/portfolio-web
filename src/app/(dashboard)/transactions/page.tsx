@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   ArrowLeftRight,
   ArrowDownLeft,
@@ -11,6 +11,10 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { EmptyState } from "@/components/shared/empty-state";
+import {
+  TableSkeleton,
+  TransactionsPageSkeleton,
+} from "@/components/shared/page-skeletons";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatCard } from "@/components/shared/stat-card";
 import { Badge } from "@/components/ui/badge";
@@ -166,10 +170,14 @@ export default function TransactionsPage() {
     }
   }, [fetchPage]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
+    setLoading(true);
     setPages([]);
     pageCursorsRef.current = [undefined];
     setPageIndex(0);
+  }, [privacyVersion]);
+
+  useEffect(() => {
     void loadSummary();
     void loadInitial();
   }, [loadSummary, loadInitial, privacyVersion]);
@@ -221,6 +229,14 @@ export default function TransactionsPage() {
 
   const pageNumber = pageIndex + 1;
 
+  if (loading) {
+    return (
+      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
+        <TransactionsPageSkeleton />
+      </motion.div>
+    );
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
@@ -229,9 +245,7 @@ export default function TransactionsPage() {
     >
       <PageHeader title="Transactions" description="Recent account activity" />
 
-      {loading ? (
-        <p className="text-sm text-muted-foreground">Loading transactions…</p>
-      ) : pageError && transactions.length === 0 ? (
+      {pageError && transactions.length === 0 ? (
         <EmptyState
           icon={ArrowLeftRight}
           title="Could not load transactions"
@@ -290,8 +304,8 @@ export default function TransactionsPage() {
             className="relative rounded-lg border border-border"
           >
             {pageLoading && (
-              <div className="absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-background/70">
-                <p className="text-sm text-muted-foreground">Loading page…</p>
+              <div className="absolute inset-0 z-10 rounded-lg bg-background/80 p-4">
+                <TableSkeleton rows={8} columns={isUnlocked ? 4 : 3} className="border-0" />
               </div>
             )}
             <Table>

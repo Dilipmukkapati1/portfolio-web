@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,10 @@ import {
   suggestHouseholdId,
   type HouseholdFormValues,
 } from "@/components/HouseholdForm";
+import {
+  FormPanelSkeleton,
+  HouseholdPageSkeleton,
+} from "@/components/shared/page-skeletons";
 import { PageHeader } from "@/components/shared/page-header";
 import type { Household, Member, TaxProfile } from "@/lib/household-types";
 import { FILING_LABELS, householdState } from "@/lib/household-types";
@@ -46,6 +50,10 @@ export default function HouseholdManagePage() {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [createFormKey, setCreateFormKey] = useState(() => suggestHouseholdId());
+
+  useLayoutEffect(() => {
+    setLoading(true);
+  }, [privacyVersion]);
 
   const loadHouseholds = useCallback(async () => {
     setLoading(true);
@@ -315,6 +323,10 @@ export default function HouseholdManagePage() {
       animate={{ opacity: 1, y: 0 }}
       className="max-w-3xl space-y-6"
     >
+      {loading ? (
+        <HouseholdPageSkeleton />
+      ) : (
+        <>
       <PageHeader
         title="Households"
         description={`Manage profile, members, and tax filing. Active: ${activeId}`}
@@ -360,9 +372,7 @@ export default function HouseholdManagePage() {
           <CardTitle className="text-lg">All households</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          {loading ? (
-            <p className="px-4 py-6 text-sm text-muted-foreground">Loading…</p>
-          ) : sortedHouseholds.length === 0 ? (
+          {sortedHouseholds.length === 0 ? (
             <div className="px-4 py-8 text-center space-y-3">
               <p className="text-sm text-muted-foreground">
                 No households yet. Create one to get started.
@@ -550,13 +560,9 @@ export default function HouseholdManagePage() {
             </CardHeader>
             <CardContent className="flex min-h-0 flex-1 flex-col overflow-hidden p-4 pt-4 sm:p-6 sm:pt-4">
               {panelLoading ? (
-                <p className="text-sm text-muted-foreground py-8 text-center">
-                  Loading members…
-                </p>
+                <FormPanelSkeleton />
               ) : panel === "edit" && !editInitial ? (
-                <p className="text-sm text-muted-foreground py-8 text-center">
-                  Loading…
-                </p>
+                <FormPanelSkeleton />
               ) : (
                 <HouseholdForm
                   resetKey={
@@ -582,6 +588,8 @@ export default function HouseholdManagePage() {
             </CardContent>
           </Card>
         </motion.div>
+      )}
+        </>
       )}
     </motion.div>
   );

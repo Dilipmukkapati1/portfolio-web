@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { api } from "@/lib/api";
 import { useHousehold } from "@/components/HouseholdProvider";
@@ -8,6 +8,7 @@ import { usePrivacy } from "@/components/PrivacyProvider";
 import { formatCurrency, formatPercent } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { TaxPageSkeleton } from "@/components/shared/page-skeletons";
 import { PageHeader } from "@/components/shared/page-header";
 import { CONTRIBUTION_TYPE_LABELS, type TaxProfile } from "@/lib/household-types";
 import type { ContributionType } from "@/lib/household-types";
@@ -17,16 +18,26 @@ export default function TaxPage() {
   const { isUnlocked, privacyVersion, showUnlockDialog } = usePrivacy();
   const [taxProfile, setTaxProfile] = useState<TaxProfile | null>(null);
   const [strategies, setStrategies] = useState<Array<Record<string, unknown>>>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [estimating, setEstimating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const taxYear =
     household?.settings?.defaultTaxYear ?? new Date().getFullYear();
 
+  useLayoutEffect(() => {
+    if (householdLoading) return;
+    if (!household) {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    setTaxProfile(null);
+    setStrategies([]);
+  }, [household, householdLoading, taxYear, privacyVersion]);
+
   const loadTaxData = useCallback(async () => {
     if (!household) return;
-    setLoading(true);
     setError(null);
     try {
       const profile = await api.getTaxProfile(taxYear).catch(() => null);
@@ -39,13 +50,13 @@ export default function TaxPage() {
     } finally {
       setLoading(false);
     }
-  }, [household, taxYear, privacyVersion]);
+  }, [household, taxYear]);
 
   useEffect(() => {
     if (household && !householdLoading) {
       void loadTaxData();
     }
-  }, [household, householdLoading, loadTaxData]);
+  }, [household, householdLoading, loadTaxData, privacyVersion]);
 
   async function runEstimate() {
     if (!household) return;
@@ -70,6 +81,14 @@ export default function TaxPage() {
   }
 
   const estimate = taxProfile?.lastEstimate;
+
+  if (householdLoading || (household && loading)) {
+    return (
+      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
+        <TaxPageSkeleton />
+      </motion.div>
+    );
+  }
 
   return (
     <motion.div

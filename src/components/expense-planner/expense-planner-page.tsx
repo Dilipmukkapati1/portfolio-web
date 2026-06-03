@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
+import { motion } from "framer-motion";
+import { ExpensePlannerPageSkeleton } from "@/components/shared/page-skeletons";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useExpensePlanner } from "@/hooks/use-expense-planner";
 import {
@@ -23,10 +24,9 @@ export function ExpensePlannerPage() {
 
   if (state.loading && !state.plan) {
     return (
-      <div className="mx-auto max-w-[1080px] space-y-4 p-3 sm:p-6">
-        <Skeleton className="h-14 w-full" />
-        <Skeleton className="h-64 w-full" />
-      </div>
+      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
+        <ExpensePlannerPageSkeleton />
+      </motion.div>
     );
   }
 

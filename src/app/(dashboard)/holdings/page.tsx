@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { motion } from "framer-motion";
 import { AllocationView } from "@/components/holdings/allocation-view";
+import { HoldingsPageSkeleton } from "@/components/shared/page-skeletons";
 import { PageHeader } from "@/components/shared/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -221,6 +222,10 @@ export default function HoldingsPage() {
     new Set()
   );
 
+  useLayoutEffect(() => {
+    setLoading(true);
+  }, [privacyVersion]);
+
   useEffect(() => {
     setLoading(true);
     setExpandedSymbols(new Set());
@@ -416,6 +421,14 @@ export default function HoldingsPage() {
     </div>
   );
 
+  if (loading) {
+    return (
+      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
+        <HoldingsPageSkeleton />
+      </motion.div>
+    );
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
@@ -425,10 +438,10 @@ export default function HoldingsPage() {
       <PageHeader
         title="Holdings"
         description="Investment positions and cash from linked accounts"
-        action={!loading && holdings.length > 0 ? controls : undefined}
+        action={holdings.length > 0 ? controls : undefined}
       />
 
-      {!loading && holdings.length > 0 && (
+      {holdings.length > 0 && (
         <Card>
           <CardContent className="flex items-center justify-between p-4">
             <p className="text-sm text-muted-foreground">Total positions value</p>
@@ -439,9 +452,7 @@ export default function HoldingsPage() {
         </Card>
       )}
 
-      {loading ? (
-        <p className="text-sm text-muted-foreground">Loading holdings…</p>
-      ) : holdings.length === 0 ? (
+      {holdings.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           No holdings yet. Connect SimpleFIN and sync from Connections — brokerage
           accounts with positions will appear here with cash balances.

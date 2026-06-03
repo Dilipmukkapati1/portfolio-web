@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { CreditCard, Landmark, TrendingUp, Wallet } from "lucide-react";
 import {
@@ -20,6 +20,7 @@ import {
 } from "@/lib/holdings";
 import type { AccountRecord } from "@/lib/types";
 import { cn, formatCurrency, formatPercent } from "@/lib/utils";
+import { AccountsPageSkeleton } from "@/components/shared/page-skeletons";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -176,6 +177,10 @@ export default function AccountsPage() {
   );
   const [loading, setLoading] = useState(true);
 
+  useLayoutEffect(() => {
+    setLoading(true);
+  }, [privacyVersion]);
+
   useEffect(() => {
     setLoading(true);
     Promise.all([api.getAccounts(), api.getHoldings(), api.listMembers()])
@@ -241,6 +246,18 @@ export default function AccountsPage() {
       summary.investmentAccounts.length >
     0;
 
+  if (loading) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+      >
+        <AccountsPageSkeleton />
+      </motion.div>
+    );
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
@@ -278,9 +295,7 @@ export default function AccountsPage() {
         />
       </div>
 
-      {loading ? (
-        <p className="text-sm text-muted-foreground">Loading accounts…</p>
-      ) : !hasAnyAccounts ? (
+      {!hasAnyAccounts ? (
         <p className="text-sm text-muted-foreground">
           No accounts linked yet. Connect SimpleFIN from Connections, then sync.
         </p>

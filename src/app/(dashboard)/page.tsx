@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { Banknote, Gauge, TrendingUp } from "lucide-react";
 import { AllocationView } from "@/components/holdings/allocation-view";
@@ -11,6 +11,7 @@ import {
 } from "@/lib/transactions-summary";
 import { formatCurrencyWhole, formatPercent } from "@/lib/utils";
 import { usePrivacy } from "@/components/PrivacyProvider";
+import { DashboardPageSkeleton } from "@/components/shared/page-skeletons";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatCard } from "@/components/shared/stat-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -47,12 +48,15 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  useLayoutEffect(() => {
+    setLoading(true);
+    setAnalytics(null);
+  }, [privacyVersion]);
+
   useEffect(() => {
     let cancelled = false;
     async function load() {
-      setLoading(true);
       setError(null);
-      setAnalytics(null);
       try {
         const data = await api.getDashboardAnalytics({
           startDate: monthStartDate(),
@@ -96,17 +100,27 @@ export default function DashboardPage() {
   const monthLabel = currentMonthLabel();
 
   const freedomScoreValue =
-    loading || !analytics?.freedomScore || analytics.freedomScore.score === null
+    !analytics?.freedomScore || analytics.freedomScore.score === null
       ? "—"
       : `${analytics.freedomScore.score}/100`;
 
-  const freedomScoreDescription = loading
-    ? "Loading…"
-    : error
-      ? "Summary unavailable"
+  const freedomScoreDescription = error
+    ? "Summary unavailable"
     : !analytics?.freedomScore || analytics.freedomScore.score === null
       ? "No spend this month — score needs expenses"
       : `4% withdrawal + interest/dividends vs ${monthLabel} spend`;
+
+  if (loading) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+      >
+        <DashboardPageSkeleton />
+      </motion.div>
+    );
+  }
 
   return (
     <motion.div
@@ -129,38 +143,30 @@ export default function DashboardPage() {
         <StatCard
           title="Net worth"
           value={
-            loading
-              ? "—"
-              : unlocked && typeof analytics?.netWorth === "number"
-                ? formatCurrencyWhole(analytics.netWorth)
-                : "Unlock to view"
+            unlocked && typeof analytics?.netWorth === "number"
+              ? formatCurrencyWhole(analytics.netWorth)
+              : "Unlock to view"
           }
           description={
-            loading
-              ? "Loading…"
-              : unlocked
-                ? "Cash, investments, minus credit"
-                : "Dollar values hidden"
+            unlocked
+              ? "Cash, investments, minus credit"
+              : "Dollar values hidden"
           }
           icon={TrendingUp}
         />
         <StatCard
           title="Uninvested cash"
           value={
-            loading
-              ? "—"
-              : unlocked && typeof analytics?.uninvestedCash === "number"
-                ? formatCurrencyWhole(analytics.uninvestedCash)
-                : typeof analytics?.uninvestedCashPercent === "number"
-                  ? formatPercent(analytics.uninvestedCashPercent)
-                  : "Unlock to view"
+            unlocked && typeof analytics?.uninvestedCash === "number"
+              ? formatCurrencyWhole(analytics.uninvestedCash)
+              : typeof analytics?.uninvestedCashPercent === "number"
+                ? formatPercent(analytics.uninvestedCashPercent)
+                : "Unlock to view"
           }
           description={
-            loading
-              ? "Loading…"
-              : unlocked
-                ? "Bank cash + brokerage cash"
-                : "Percent of net worth"
+            unlocked
+              ? "Bank cash + brokerage cash"
+              : "Percent of net worth"
           }
           icon={Banknote}
         />
@@ -183,9 +189,7 @@ export default function DashboardPage() {
               <CardTitle className="text-lg">Holdings by category</CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col justify-center">
-              {loading ? (
-                <p className="text-sm text-muted-foreground">Loading holdings…</p>
-              ) : error ? (
+              {error ? (
                 <p className="text-sm text-muted-foreground">{error}</p>
               ) : categoryAllocation.length === 0 ? (
                 <p className="text-sm text-muted-foreground">

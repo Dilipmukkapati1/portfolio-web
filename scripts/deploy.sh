@@ -112,11 +112,16 @@ deploy_static_web_app() {
     exit 1
   fi
 
+  # Upload source only (matches CI). Local .next breaks the SWA CLI uploader.
+  rm -rf "$ROOT/.next" "$ROOT/.swa-deploy"
+
   echo "Deploying to Static Web App (${DEPLOY_ENV})..."
   (
     cd "$ROOT/.."
     npx --yes @azure/static-web-apps-cli deploy \
       --app-location "$(basename "$ROOT")" \
+      --api-location "" \
+      --output-location "" \
       --env production \
       --deployment-token "$token"
   )

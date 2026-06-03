@@ -61,6 +61,18 @@ jobs:
           repository: Dilipmukkapati1/portfolio-contracts
           path: portfolio-contracts
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Build portfolio-contracts for SWA Oryx
+        run: npm ci && npm run build
+        working-directory: portfolio-contracts
+
+      - name: Install web dependencies for SWA Oryx
+        run: npm install --no-audit --no-fund
+        working-directory: portfolio-web
+
       - name: Deploy to Azure Static Web Apps
         uses: Azure/static-web-apps-deploy@v1
         with:

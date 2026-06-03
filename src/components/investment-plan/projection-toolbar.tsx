@@ -23,7 +23,7 @@ export function ProjectionToolbar({
 }) {
   return (
     <div
-      className="flex flex-wrap items-center gap-1.5"
+      className="flex w-full min-w-0 flex-nowrap items-center gap-1 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       role="toolbar"
       aria-label="Projection rate and dividend reinvestment"
     >
@@ -34,35 +34,33 @@ export function ProjectionToolbar({
           size="sm"
           variant={projectionRate === p.id ? "secondary" : "ghost"}
           title={p.title}
-          className="min-h-11 min-w-11"
+          className="h-9 shrink-0 px-2.5 text-xs sm:min-h-11 sm:min-w-11 sm:px-3 sm:text-sm"
           onClick={() => onProjectionRateChange(p.id)}
         >
           {p.label}
         </Button>
       ))}
-      <span className="mx-1 h-4 w-px bg-border" aria-hidden />
-      <div className="inline-flex shrink-0 items-center gap-1.5">
-        <Button
-          type="button"
-          size="sm"
-          variant={reinvestDividends ? "secondary" : "ghost"}
-          title="Reinvest dividends (DRIP)"
-          className="min-h-11 whitespace-nowrap"
-          onClick={() => onReinvestDividendsChange(true)}
-        >
-          DRIP
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant={!reinvestDividends ? "secondary" : "ghost"}
-          title="Price return only"
-          className="min-h-11 whitespace-nowrap"
-          onClick={() => onReinvestDividendsChange(false)}
-        >
-          No DRIP
-        </Button>
-      </div>
+      <span className="mx-0.5 h-4 w-px shrink-0 bg-border" aria-hidden />
+      <Button
+        type="button"
+        size="sm"
+        variant={reinvestDividends ? "secondary" : "ghost"}
+        title="Reinvest dividends (DRIP)"
+        className="h-9 shrink-0 whitespace-nowrap px-2.5 text-xs sm:min-h-11 sm:px-3 sm:text-sm"
+        onClick={() => onReinvestDividendsChange(true)}
+      >
+        DRIP
+      </Button>
+      <Button
+        type="button"
+        size="sm"
+        variant={!reinvestDividends ? "secondary" : "ghost"}
+        title="Price return only"
+        className="h-9 shrink-0 whitespace-nowrap px-2.5 text-xs sm:min-h-11 sm:px-3 sm:text-sm"
+        onClick={() => onReinvestDividendsChange(false)}
+      >
+        No DRIP
+      </Button>
     </div>
   );
 }

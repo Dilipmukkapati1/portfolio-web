@@ -294,12 +294,14 @@ export function InstrumentExplorer({
           </div>
         )}
 
-        <ProjectionToolbar
-          projectionRate={projectionRate}
-          onProjectionRateChange={onProjectionRateChange}
-          reinvestDividends={reinvestDividends}
-          onReinvestDividendsChange={onReinvestDividendsChange}
-        />
+        {explorerProfile && (
+          <ProjectionToolbar
+            projectionRate={projectionRate}
+            onProjectionRateChange={onProjectionRateChange}
+            reinvestDividends={reinvestDividends}
+            onReinvestDividendsChange={onReinvestDividendsChange}
+          />
+        )}
 
         {explorerProjection && allocationPrincipal > 0 && (
           <div className="space-y-3">

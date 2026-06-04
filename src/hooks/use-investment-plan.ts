@@ -3,18 +3,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
   AllocationClassRollup,
-  DisplayUnit,
   FundProfile,
   HouseholdPlanSummary,
+  InstrumentExecutionRollup,
   InvestmentPlan,
   PlannedInstrument,
   ProjectionResponse,
   ReturnPeriod,
-  TransactionSummaryResponse,
 } from "@portfolio/contracts";
 import {
   buildAllocationSegments,
+  buildInstrumentExecutionRollups,
   computeInstrumentProjection,
+  computePlanExecutionOutlook,
   computePlanProjection,
   inferAssetClassFromName,
   instrumentDollars,
@@ -25,10 +26,6 @@ import {
 } from "@portfolio/contracts";
 import { api } from "@/lib/api";
 import { usePrivacy } from "@/components/PrivacyProvider";
-import {
-  clampSummaryDateRange,
-  durationRange,
-} from "@/lib/expense-planner/date-ranges";
 
 function newInstrumentId(): string {
   return crypto.randomUUID();
@@ -47,7 +44,7 @@ function useDebouncedEffect(
 }
 
 export function useInvestmentPlan() {
-  const { privacyVersion, isUnlocked } = usePrivacy();
+  const { privacyVersion, isUnlocked, displayUnit } = usePrivacy();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -58,20 +55,13 @@ export function useInvestmentPlan() {
   const [summary, setSummary] = useState<HouseholdPlanSummary | null>(null);
   const [plan, setPlan] = useState<InvestmentPlan | null>(null);
   const [allocation, setAllocation] = useState<AllocationClassRollup[]>([]);
+  const [instrumentRollups, setInstrumentRollups] = useState<
+    InstrumentExecutionRollup[]
+  >([]);
   const [netWorth, setNetWorth] = useState(0);
   const [actualTotalDollars, setActualTotalDollars] = useState<number | null>(
     null
   );
-  const [spendSummary, setSpendSummary] = useState<
-    (TransactionSummaryResponse & {
-      privacyMode?: "locked" | "unlocked";
-      valuesUnlocked?: boolean;
-      spendByCategoryPercent?: Record<string, number>;
-    }) | null
-  >(null);
-  const spendRangeLabel = durationRange("last-3-months", "", "").label;
-
-  const [displayUnit, setDisplayUnit] = useState<DisplayUnit>("percent");
   const [projectionRate, setProjectionRate] = useState<ReturnPeriod>("life");
   const [reinvestDividends, setReinvestDividends] = useState(true);
 
@@ -97,26 +87,17 @@ export function useInvestmentPlan() {
     }
     setError(null);
     try {
-      const spendRange = durationRange("last-3-months", "", "");
-      const spendDates = clampSummaryDateRange(
-        spendRange.startDate,
-        spendRange.endDate
-      );
-      const [summaryRes, planRes, allocationRes, spendRes] = await Promise.all([
+      const [summaryRes, planRes, allocationRes] = await Promise.all([
         api.getInvestmentPlanSummary(),
         api.getInvestmentPlan(),
         api.getInvestmentPlanAllocation(),
-        api.getTransactionSummary({
-          startDate: spendDates.startDate,
-          endDate: spendDates.endDate,
-        }),
       ]);
       setSummary(summaryRes.summary);
       setPlan(planRes.plan);
       setAllocation(allocationRes.classes);
+      setInstrumentRollups(allocationRes.instrumentRollups ?? []);
       setNetWorth(allocationRes.netWorth);
       setActualTotalDollars(allocationRes.actualTotalDollars);
-      setSpendSummary(spendRes);
       userEditedPlan.current = false;
       hasLoaded.current = true;
     } catch (err) {
@@ -188,6 +169,23 @@ export function useInvestmentPlan() {
       isUnlocked
     );
   }, [allocation, isUnlocked, netWorth, plan]);
+
+  const displayExecutionOutlook = useMemo(() => {
+    if (!plan || !isUnlocked) return null;
+    const actualHoldings = instrumentRollups
+      .filter((row) => row.actualDollars != null && row.actualDollars > 0)
+      .map((row) => ({
+        symbol: row.ticker,
+        marketValue: row.actualDollars!,
+      }));
+    const rollups = buildInstrumentExecutionRollups({
+      instruments: plan.instruments,
+      netWorth,
+      actualHoldings,
+      valuesUnlocked: true,
+    });
+    return computePlanExecutionOutlook(rollups);
+  }, [instrumentRollups, isUnlocked, netWorth, plan]);
 
   useEffect(() => {
     for (const item of instruments) {
@@ -399,6 +397,7 @@ export function useInvestmentPlan() {
             return;
           }
           setAllocation(allocationRes.classes);
+          setInstrumentRollups(allocationRes.instrumentRollups ?? []);
           setNetWorth(allocationRes.netWorth);
           setActualTotalDollars(allocationRes.actualTotalDollars);
         })
@@ -424,14 +423,12 @@ export function useInvestmentPlan() {
     summary,
     plan,
     allocation: displayAllocation,
+    instrumentRollups,
+    executionOutlook: displayExecutionOutlook,
     netWorth,
     actualTotalDollars,
     valuesUnlocked: isUnlocked,
-    spendSummary,
-    spendRangeLabel,
-    spendValuesUnlocked: isUnlocked && spendSummary?.valuesUnlocked !== false,
     displayUnit,
-    setDisplayUnit,
     projectionRate,
     setProjectionRate,
     reinvestDividends,

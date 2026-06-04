@@ -15,9 +15,9 @@ type TabConfig = {
 const TABS: TabConfig[] = [
   {
     id: "allocation",
-    label: "Allocation",
+    label: "Overview",
     icon: PieChart,
-    ariaLabel: "Allocation by asset class, plan vs actual",
+    ariaLabel: "Overview: plan execution outlook and allocation by asset class",
   },
   {
     id: "plan",

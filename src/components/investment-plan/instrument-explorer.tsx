@@ -10,8 +10,8 @@ import type {
 import {
   assetClassLabel,
   compoundRateForProjection,
-  compoundRateBreakdown,
   formatReturnPct,
+  PROJECTION_MAX_YEARS,
 } from "@portfolio/contracts";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -22,30 +22,11 @@ import { ProjectionToolbar } from "./projection-toolbar";
 import { ProjectionLineChart } from "./projection-line-chart";
 import { MetricChips } from "./metric-chips";
 import { HorizonTiles } from "./horizon-tiles";
+import { FundProfileDetails } from "./fund-profile-details";
 import { formatCompactCurrency } from "@/lib/investment-plan/format";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { cn, formatPercent } from "@/lib/utils";
 import { ASSET_CLASS_COLORS } from "@/lib/investment-plan/colors";
-
-const PROJECTION_MAX_YEARS = 50;
-
-function formatExpenseRatio(ratio: number): string {
-  return `${(ratio * 100).toFixed(2)}%`;
-}
-
-function feeDisplay(profile: FundProfile): { label: string; value: string } {
-  switch (profile.feeKind) {
-    case "none":
-      return { label: "Fees", value: "None" };
-    case "commission":
-      return { label: "Trading fee", value: "$0 commission" };
-    default:
-      return {
-        label: "Expense ratio",
-        value: formatExpenseRatio(profile.expenseRatio),
-      };
-  }
-}
 
 export function InstrumentExplorer({
   explorerName,
@@ -84,13 +65,6 @@ export function InstrumentExplorer({
     Number.isFinite(allocPct) && allocPct > 0 ? (allocPct / 100) * netWorth : 0;
 
   const explorerProfile = profile;
-  const fee = explorerProfile ? feeDisplay(explorerProfile) : null;
-  const estAnnualFee =
-    explorerProfile &&
-    explorerProfile.feeKind === "expense_ratio" &&
-    allocationPrincipal > 0
-      ? allocationPrincipal * explorerProfile.expenseRatio
-      : 0;
 
   const compoundRate =
     explorerProfile &&
@@ -167,130 +141,57 @@ export function InstrumentExplorer({
         )}
 
         {explorerProfile && (
-          <div className="space-y-2">
+          <div
+            className={cn(
+              "space-y-2 rounded-lg border bg-muted/15 p-2.5",
+              isMobile ? "w-full" : "w-full max-w-[17.5rem]"
+            )}
+          >
             <p className="text-sm font-semibold">Fund profile</p>
             {isMobile ? (
-              <>
-                <MetricChips
-                  chips={[
-                    { key: "1y", label: "1Y", value: formatReturnPct(explorerProfile.return1y) },
-                    { key: "3y", label: "3Y", value: formatReturnPct(explorerProfile.return3y) },
-                    { key: "5y", label: "5Y", value: formatReturnPct(explorerProfile.return5y) },
-                    {
-                      key: "life",
-                      label: "Life",
-                      value: formatReturnPct(explorerProfile.annualizedReturn),
-                      tone: "info",
-                    },
-                  ]}
-                />
-                <p className="overflow-x-auto whitespace-nowrap text-xs text-muted-foreground">
-                  {explorerProfile.dividendYield > 0
-                    ? `Div ${formatReturnPct(explorerProfile.dividendYield)}`
-                    : "No div"}
-                  {" · Proj "}
-                  {compoundRateBreakdown(explorerProfile, projectionRate, reinvestDividends)}
-                  {reinvestDividends && explorerProfile.dividendYield > 0 ? " DRIP" : ""}
-                  {" · "}
-                  {explorerProfile.yearsSinceInception} yr since{" "}
-                  {explorerProfile.inceptionLabel}
-                </p>
-                {explorerProfile.feeKind === "expense_ratio" ? (
-                  <p className="overflow-x-auto whitespace-nowrap text-xs text-muted-foreground">
-                    <span className="font-semibold">ER</span> {fee?.value}
-                    {allocationPrincipal > 0 ? (
-                      <>
-                        {" · "}
-                        <span className="font-semibold text-amber-600 dark:text-amber-400">
-                          ~{formatCompactCurrency(estAnnualFee)}/yr
-                        </span>
-                      </>
-                    ) : (
-                      " · enter % NW for est. cost"
-                    )}
-                  </p>
-                ) : explorerProfile.feeKind === "commission" ? (
-                  <p className="text-xs text-muted-foreground">$0 commission/trade · no ER</p>
-                ) : (
-                  <p className="text-xs text-muted-foreground">{fee?.value}</p>
-                )}
-              </>
+              <MetricChips
+                chips={[
+                  { key: "1y", label: "1Y", value: formatReturnPct(explorerProfile.return1y) },
+                  { key: "3y", label: "3Y", value: formatReturnPct(explorerProfile.return3y) },
+                  { key: "5y", label: "5Y", value: formatReturnPct(explorerProfile.return5y) },
+                  {
+                    key: "life",
+                    label: "Life",
+                    value: formatReturnPct(explorerProfile.annualizedReturn),
+                    tone: "info",
+                  },
+                ]}
+              />
             ) : (
-              <div className="grid grid-cols-2 gap-3">
-                <div className="grid grid-cols-2 gap-2">
-                  {(
-                    [
-                      ["1Y", explorerProfile.return1y],
-                      ["3Y", explorerProfile.return3y],
-                      ["5Y", explorerProfile.return5y],
-                      ["Life", explorerProfile.annualizedReturn],
-                    ] as const
-                  ).map(([label, rate]) => (
-                    <div key={label} className="rounded-md border px-2 py-1.5">
-                      <p className="text-xs text-muted-foreground">{label}</p>
-                      <p
-                        className={cn(
-                          "text-sm font-semibold tabular-nums",
-                          label === "Life" && "text-primary"
-                        )}
-                      >
-                        {formatReturnPct(rate)}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-                <div className="space-y-1.5 text-sm">
-                  <p className="text-xs text-muted-foreground">
-                    {explorerProfile.dividendYield > 0
-                      ? `Div ${formatReturnPct(explorerProfile.dividendYield)}`
-                      : "No div"}
-                    {" · Proj "}
-                    {compoundRateBreakdown(explorerProfile, projectionRate, reinvestDividends)}
-                    {reinvestDividends && explorerProfile.dividendYield > 0 ? " DRIP" : ""}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {explorerProfile.yearsSinceInception} yr since{" "}
-                    {explorerProfile.inceptionLabel}
-                  </p>
-                  {explorerProfile.feeKind === "expense_ratio" ? (
-                    <div className="space-y-1">
-                      <div>
-                        <p className="text-xs text-muted-foreground">Expense ratio</p>
-                        <p className="font-medium">{fee?.value}</p>
-                      </div>
-                      {allocationPrincipal > 0 ? (
-                        <>
-                          <div>
-                            <p className="text-xs text-muted-foreground">Est. annual cost</p>
-                            <p className="font-medium text-amber-600 dark:text-amber-400">
-                              {formatCompactCurrency(estAnnualFee)}
-                            </p>
-                          </div>
-                          <p className="text-xs text-muted-foreground">
-                            {formatExpenseRatio(explorerProfile.expenseRatio)} ×{" "}
-                            {formatCompactCurrency(allocationPrincipal)}
-                          </p>
-                        </>
-                      ) : (
-                        <p className="text-xs text-muted-foreground">
-                          Enter % NW for est. cost
-                        </p>
+              <div className="grid grid-cols-2 gap-1.5">
+                {(
+                  [
+                    ["1Y", explorerProfile.return1y, false],
+                    ["3Y", explorerProfile.return3y, false],
+                    ["5Y", explorerProfile.return5y, false],
+                    ["Life", explorerProfile.annualizedReturn, true],
+                  ] as const
+                ).map(([label, rate, highlight]) => (
+                  <div key={label} className="rounded-md border bg-background px-2 py-1.5">
+                    <p className="text-xs text-muted-foreground">{label}</p>
+                    <p
+                      className={cn(
+                        "text-sm font-semibold tabular-nums",
+                        highlight && "text-primary"
                       )}
-                    </div>
-                  ) : explorerProfile.feeKind === "commission" ? (
-                    <div>
-                      <p className="text-xs text-muted-foreground">Trading fee</p>
-                      <p className="font-medium">$0 commission</p>
-                    </div>
-                  ) : (
-                    <div>
-                      <p className="text-xs text-muted-foreground">Fees</p>
-                      <p className="font-medium">{fee?.value}</p>
-                    </div>
-                  )}
-                </div>
+                    >
+                      {formatReturnPct(rate)}
+                    </p>
+                  </div>
+                ))}
               </div>
             )}
+            <FundProfileDetails
+              profile={explorerProfile}
+              projectionRate={projectionRate}
+              reinvestDividends={reinvestDividends}
+              allocationPrincipal={allocationPrincipal}
+            />
           </div>
         )}
 

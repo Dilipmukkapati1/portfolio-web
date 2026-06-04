@@ -1,6 +1,10 @@
 "use client";
 
-import type { ProjectionResponse, ReturnPeriod } from "@portfolio/contracts";
+import {
+  PROJECTION_MAX_YEARS,
+  type ProjectionResponse,
+  type ReturnPeriod,
+} from "@portfolio/contracts";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { ProjectionToolbar } from "./projection-toolbar";
 import { ProjectionLineChart } from "./projection-line-chart";
@@ -8,8 +12,6 @@ import { MetricChips, type MetricChip } from "./metric-chips";
 import { HorizonTiles } from "./horizon-tiles";
 import { formatCompactCurrency } from "@/lib/investment-plan/format";
 import { useIsMobile } from "@/hooks/use-is-mobile";
-
-const PROJECTION_MAX_YEARS = 50;
 
 export function PortfolioOutlook({
   portfolioProjection,
@@ -83,22 +85,6 @@ export function PortfolioOutlook({
         </div>
       ) : (
         <div className="space-y-3.5">
-          <MetricChips
-            chips={[
-              {
-                key: "today",
-                label: "Combined today",
-                value: formatCompactCurrency(portfolioProjection.totalPrincipal ?? 0),
-              },
-              ...portfolioProjection.milestones.map((m) => ({
-                key: `y${m.years}`,
-                label: `At ${m.years} yr`,
-                value: formatCompactCurrency(m.future),
-                tone: "info" as const,
-              })),
-            ]}
-          />
-
           <div className="min-h-[220px] w-full min-w-0 sm:min-h-[220px]">
             <ProjectionLineChart
               categories={portfolioProjection.categories}

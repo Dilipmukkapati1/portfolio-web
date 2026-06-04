@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import { PageHeaderControls } from "./page-header-controls";
 import { AllocationDonut } from "./allocation-donut";
 import { PortfolioOutlook } from "./portfolio-outlook";
-import { SpendingSnapshot } from "./spending-snapshot";
+import { PlanExecutionOutlookSummary } from "./plan-execution-outlook";
 import { InstrumentExplorer } from "./instrument-explorer";
 import { HoldingsList } from "./holdings-list";
 import {
@@ -45,11 +45,7 @@ export function InvestmentPlanPage() {
   if (state.error) {
     return (
       <div className="mx-auto max-w-[1080px] space-y-4 p-3 sm:p-6">
-        <PageHeaderControls
-          netWorth={0}
-          displayUnit={state.displayUnit}
-          onDisplayUnitChange={state.setDisplayUnit}
-        />
+        <PageHeaderControls netWorth={0} />
         <div className="rounded-md border border-destructive/50 bg-destructive/10 p-4">
           <p className="text-sm text-destructive">{state.error}</p>
           <Button
@@ -80,32 +76,35 @@ export function InvestmentPlanPage() {
     />
   );
 
+  const executionOutlookSummary = (
+    <PlanExecutionOutlookSummary
+      executionOutlook={state.executionOutlook}
+      valuesUnlocked={state.valuesUnlocked}
+      compact={isMobile && mobileTab === "plan"}
+    />
+  );
+
   const allocationCard = isMobile ? (
-    <InvestmentPlanMobileSection>
-      <p className="mb-3 font-semibold leading-none">Allocation by asset class</p>
-      {allocationContent}
+    <InvestmentPlanMobileSection className="space-y-3">
+      {executionOutlookSummary}
+      <div>
+        <p className="mb-3 font-semibold leading-none">Allocation by asset class</p>
+        {allocationContent}
+      </div>
     </InvestmentPlanMobileSection>
   ) : (
     <Card>
       <CardHeader className="pb-2">
         <p className="font-semibold leading-none">Allocation by asset class</p>
       </CardHeader>
-      <CardContent>{allocationContent}</CardContent>
+      <CardContent className="space-y-4">
+        <PlanExecutionOutlookSummary
+          executionOutlook={state.executionOutlook}
+          valuesUnlocked={state.valuesUnlocked}
+        />
+        {allocationContent}
+      </CardContent>
     </Card>
-  );
-
-  const spendingSnapshot = (
-    <SpendingSnapshot
-      summary={state.spendSummary}
-      valuesUnlocked={state.spendValuesUnlocked}
-      rangeLabel={state.spendRangeLabel}
-    />
-  );
-
-  const spendingCard = isMobile ? (
-    <InvestmentPlanMobileSection>{spendingSnapshot}</InvestmentPlanMobileSection>
-  ) : (
-    spendingSnapshot
   );
 
   const portfolioOutlookProps = {
@@ -149,10 +148,14 @@ export function InvestmentPlanPage() {
       />
 
       <div className="space-y-2">
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
           <p className="text-sm font-semibold">Holdings</p>
           <p className="text-sm text-muted-foreground">
             {instruments.length} · {formatCompactCurrency(summary.plannedTotalDollars)}
+          </p>
+          <p className="w-full text-xs text-muted-foreground sm:w-auto sm:text-right">
+            Projected values · {state.projectionRate === "life" ? "life" : state.projectionRate}
+            {state.reinvestDividends ? " · DRIP" : ""} · scroll for more
           </p>
         </div>
         <HoldingsList
@@ -166,6 +169,8 @@ export function InvestmentPlanPage() {
           onRemove={state.removeInstrument}
           saving={state.saving}
           profileForInstrument={state.profileForInstrument}
+          projectionRate={state.projectionRate}
+          reinvestDividends={state.reinvestDividends}
         />
       </div>
     </>
@@ -173,6 +178,7 @@ export function InvestmentPlanPage() {
 
   const planByInstrumentCard = isMobile ? (
     <InvestmentPlanMobileSection className="space-y-4">
+      {executionOutlookSummary}
       {planByInstrumentBody}
     </InvestmentPlanMobileSection>
   ) : (
@@ -183,7 +189,13 @@ export function InvestmentPlanPage() {
           {instruments.length} instruments
         </p>
       </CardHeader>
-      <CardContent className="space-y-[18px]">{planByInstrumentBody}</CardContent>
+      <CardContent className="space-y-[18px]">
+        <PlanExecutionOutlookSummary
+          executionOutlook={state.executionOutlook}
+          valuesUnlocked={state.valuesUnlocked}
+        />
+        {planByInstrumentBody}
+      </CardContent>
     </Card>
   );
 
@@ -198,8 +210,6 @@ export function InvestmentPlanPage() {
     >
       <PageHeaderControls
         netWorth={summary.netWorth}
-        displayUnit={state.displayUnit}
-        onDisplayUnitChange={state.setDisplayUnit}
         saveStatus={saveStatus}
         refreshing={state.refreshing}
       />
@@ -215,12 +225,7 @@ export function InvestmentPlanPage() {
       {isMobile ? (
         <>
           <div role="tabpanel" aria-label={mobileTab}>
-            {mobileTab === "allocation" && (
-              <>
-                {spendingCard}
-                {allocationCard}
-              </>
-            )}
+            {mobileTab === "allocation" && allocationCard}
             {mobileTab === "plan" && planByInstrumentCard}
             {mobileTab === "outlook" && portfolioOutlookCard}
           </div>
@@ -229,7 +234,6 @@ export function InvestmentPlanPage() {
       ) : (
         <div className="grid grid-cols-2 items-start gap-6">
           <div className="flex min-w-0 flex-col gap-6">
-            {spendingCard}
             {allocationCard}
             {portfolioOutlookCard}
           </div>
@@ -263,8 +267,8 @@ function OverAllocationCallout({
         Plan exceeds 100% of net worth
       </p>
       <p className="mt-1 text-sm text-amber-800/90 dark:text-amber-200/90">
-        Target allocations sum to {totalLabel}. Adjust instruments or switch to $
-        view to rebalance.
+        Target allocations sum to {totalLabel}. Adjust instrument targets, or flip the
+        header toggle to $ to review dollar amounts.
       </p>
     </div>
   );

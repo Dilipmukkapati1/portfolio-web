@@ -8,9 +8,12 @@ import {
   useMemo,
   useState,
 } from "react";
+import type { DisplayUnit } from "@portfolio/contracts";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
+import { cn } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -23,6 +26,8 @@ import {
 type PrivacyContextValue = {
   isUnlocked: boolean;
   privacyVersion: number;
+  displayUnit: DisplayUnit;
+  setDisplayUnit: (unit: DisplayUnit) => void;
   showUnlockDialog: () => void;
   hideValues: () => void;
 };
@@ -37,10 +42,18 @@ export function PrivacyProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  const displayUnit: DisplayUnit = isUnlocked ? "dollar" : "percent";
+
   const bumpPrivacyVersion = useCallback(
     () => setPrivacyVersion((version) => version + 1),
     []
   );
+
+  const showUnlockDialog = useCallback(() => {
+    setError(null);
+    setPassword("");
+    setDialogOpen(true);
+  }, []);
 
   const hideValues = useCallback(() => {
     api.lockPrivacy();
@@ -50,16 +63,21 @@ export function PrivacyProvider({ children }: { children: React.ReactNode }) {
     bumpPrivacyVersion();
   }, [bumpPrivacyVersion]);
 
+  const setDisplayUnit = useCallback(
+    (unit: DisplayUnit) => {
+      if (unit === "percent") {
+        if (isUnlocked) hideValues();
+        return;
+      }
+      if (!isUnlocked) showUnlockDialog();
+    },
+    [hideValues, isUnlocked, showUnlockDialog]
+  );
+
   useEffect(() => {
     api.setPrivacyUnauthorizedHandler(hideValues);
     return () => api.setPrivacyUnauthorizedHandler(null);
   }, [hideValues]);
-
-  const showUnlockDialog = useCallback(() => {
-    setError(null);
-    setPassword("");
-    setDialogOpen(true);
-  }, []);
 
   const unlock = useCallback(async () => {
     setSubmitting(true);
@@ -79,8 +97,22 @@ export function PrivacyProvider({ children }: { children: React.ReactNode }) {
   }, [bumpPrivacyVersion, password]);
 
   const value = useMemo(
-    () => ({ isUnlocked, privacyVersion, showUnlockDialog, hideValues }),
-    [hideValues, isUnlocked, privacyVersion, showUnlockDialog]
+    () => ({
+      isUnlocked,
+      privacyVersion,
+      displayUnit,
+      setDisplayUnit,
+      showUnlockDialog,
+      hideValues,
+    }),
+    [
+      displayUnit,
+      hideValues,
+      isUnlocked,
+      privacyVersion,
+      setDisplayUnit,
+      showUnlockDialog,
+    ]
   );
 
   return (
@@ -122,7 +154,7 @@ export function PrivacyProvider({ children }: { children: React.ReactNode }) {
                 Cancel
               </Button>
               <Button type="submit" disabled={submitting || password.length === 0}>
-                {submitting ? "Unlocking..." : "Show dollar values"}
+                {submitting ? "Unlocking..." : "Unlock"}
               </Button>
             </DialogFooter>
           </form>
@@ -141,16 +173,39 @@ export function usePrivacy(): PrivacyContextValue {
 }
 
 export function PrivacyToggle({ compact = false }: { compact?: boolean }) {
-  const { isUnlocked, showUnlockDialog, hideValues } = usePrivacy();
+  const { displayUnit, setDisplayUnit } = usePrivacy();
+
   return (
-    <Button
-      type="button"
-      variant={isUnlocked ? "destructive" : "outline"}
-      size={compact ? "sm" : "default"}
-      onClick={isUnlocked ? hideValues : showUnlockDialog}
-      className={compact ? "text-xs" : undefined}
+    <div
+      className={cn("flex items-center gap-1.5", compact && "shrink-0")}
+      role="group"
+      aria-label="Value display"
     >
-      {isUnlocked ? "Hide $" : "Show dollar values"}
-    </Button>
+      <span
+        className={cn(
+          compact ? "text-xs" : "text-sm",
+          displayUnit === "dollar" ? "font-medium text-foreground" : "text-muted-foreground"
+        )}
+      >
+        $
+      </span>
+      <Switch
+        checked={displayUnit === "percent"}
+        onCheckedChange={(on) => setDisplayUnit(on ? "percent" : "dollar")}
+        aria-label={
+          displayUnit === "percent"
+            ? "Showing percents; switch to show dollar values"
+            : "Showing dollars; switch to hide dollar values"
+        }
+      />
+      <span
+        className={cn(
+          compact ? "text-xs" : "text-sm",
+          displayUnit === "percent" ? "font-medium text-foreground" : "text-muted-foreground"
+        )}
+      >
+        %
+      </span>
+    </div>
   );
 }

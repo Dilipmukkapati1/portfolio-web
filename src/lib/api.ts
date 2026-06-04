@@ -284,6 +284,8 @@ export const api = {
       netWorth: number;
       actualTotalDollars: number | null;
       classes: import("@portfolio/contracts").AllocationClassRollup[];
+      instrumentRollups: import("@portfolio/contracts").InstrumentExecutionRollup[];
+      executionOutlook: import("@portfolio/contracts").PlanExecutionOutlook | null;
     }>("/investment-plan/allocation"),
   getInvestmentPlan: () =>
     apiFetch<{ plan: import("@portfolio/contracts").InvestmentPlan }>(

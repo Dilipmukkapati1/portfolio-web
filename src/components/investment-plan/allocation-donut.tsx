@@ -335,17 +335,7 @@ export function AllocationDonut({
         {deltaPct.toFixed(1)} pp
       </p>
     </div>
-  ) : (
-    <p
-      className={cn(
-        "text-sm text-muted-foreground",
-        isMobile ? "text-center" : "text-left"
-      )}
-    >
-      Hover or tap a ring slice or legend row for plan vs actual. Values follow the{" "}
-      {displayUnit === "dollar" ? "$" : "%"} toggle.
-    </p>
-  );
+  ) : null;
 
   const trailingSummary = `${plannedTotalPercent.toFixed(1)}% planned · ${formatCompactCurrency(actualTotalDollars ?? 0, { hidden: !valuesUnlocked })} actual`;
 

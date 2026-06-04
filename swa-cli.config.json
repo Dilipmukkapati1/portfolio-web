@@ -5,8 +5,7 @@
       "appLocation": ".",
       "apiLocation": "",
       "outputLocation": "",
-      "appBuildCommand": "npm run build",
-      "runBuildOrDeploy": true
+      "runBuildOrDeploy": false
     }
   }
 }

@@ -39,18 +39,15 @@ jobs:
           echo "NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}"
           npm ci
           npm run build
+          test -d .next/standalone
 
       - name: Deploy Static Web App
-        env:
-          SWA_DEPLOYMENT_TOKEN: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
-          FUNCTION_APP_BASE_URL: ${{ vars.FUNCTION_APP_BASE_URL }}
-        run: |
-          api_base="${FUNCTION_APP_BASE_URL:-https://ppm-dev-func-x32hrp.azurewebsites.net}"
-          export NEXT_PUBLIC_API_URL="${api_base%/}/api"
-          export NEXT_PUBLIC_APP_ENV=development
-          export NEXT_PUBLIC_DEFAULT_HOUSEHOLD_ID=dev-household
-          rm -rf .next .swa-deploy
-          npx --yes @azure/static-web-apps-cli deploy \
-            --config swa-cli.config.json \
-            --env production \
-            --deployment-token "$SWA_DEPLOYMENT_TOKEN"
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: upload
+          app_location: /
+          api_location: ""
+          output_location: ""
+          skip_app_build: true

@@ -8,7 +8,7 @@
     "dev:azure": "node scripts/dev.mjs --azure-dev",
     "dev:local": "node scripts/dev.mjs --local",
     "dev:local-api": "node scripts/dev.mjs --local",
-    "build": "next build",
+    "build": "next build && node scripts/copy-standalone.mjs",
     "start": "next start",
     "lint": "next lint",
     "test": "vitest run",

@@ -112,14 +112,20 @@ deploy_static_web_app() {
     exit 1
   fi
 
-  # Upload source for Oryx build on Azure (see swa-cli.config.json). Prebuilt .next is not uploaded.
-  rm -rf "$ROOT/.next" "$ROOT/.swa-deploy"
+  # Hybrid Next.js: deploy app root with .next/standalone (see next.config output: standalone).
+  if [[ ! -d "$ROOT/.next/standalone" ]]; then
+    echo "Missing .next/standalone. Run npm run build before deploy." >&2
+    exit 1
+  fi
+  rm -rf "$ROOT/.swa-deploy"
 
   echo "Deploying to Static Web App (${DEPLOY_ENV})..."
   (
     cd "$ROOT"
-    npx --yes @azure/static-web-apps-cli deploy \
+    npx --yes @azure/static-web-apps-cli@2.0.9 deploy \
       --config swa-cli.config.json \
+      --app-location . \
+      --output-location "" \
       --env production \
       --deployment-token "$token"
   )

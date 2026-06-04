@@ -201,6 +201,22 @@ export function isRangeWithinLimit(startDate: string, endDate: string): boolean 
   return daysInRange(startDate, endDate) <= MAX_SUMMARY_DAYS;
 }
 
+/** Keep transaction summary requests within the API's 366-day inclusive limit. */
+export function clampSummaryDateRange(
+  startDate: string,
+  endDate: string,
+  maxDays: number = MAX_SUMMARY_DAYS
+): { startDate: string; endDate: string } {
+  if (daysInRange(startDate, endDate) <= maxDays) {
+    return { startDate, endDate };
+  }
+  const end = parseIsoDate(endDate);
+  const start = new Date(end);
+  start.setDate(start.getDate() - (maxDays - 1));
+  start.setHours(0, 0, 0, 0);
+  return { startDate: toIsoDate(start), endDate };
+}
+
 export function monthsInRange(start: Date, end: Date): Date[] {
   const months: Date[] = [];
   let cur = startOfMonth(start);

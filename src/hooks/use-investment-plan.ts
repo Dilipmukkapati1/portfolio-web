@@ -10,6 +10,7 @@ import type {
   PlannedInstrument,
   ProjectionResponse,
   ReturnPeriod,
+  TransactionSummaryResponse,
 } from "@portfolio/contracts";
 import {
   buildAllocationSegments,
@@ -24,6 +25,10 @@ import {
 } from "@portfolio/contracts";
 import { api } from "@/lib/api";
 import { usePrivacy } from "@/components/PrivacyProvider";
+import {
+  clampSummaryDateRange,
+  durationRange,
+} from "@/lib/expense-planner/date-ranges";
 
 function newInstrumentId(): string {
   return crypto.randomUUID();
@@ -57,6 +62,14 @@ export function useInvestmentPlan() {
   const [actualTotalDollars, setActualTotalDollars] = useState<number | null>(
     null
   );
+  const [spendSummary, setSpendSummary] = useState<
+    (TransactionSummaryResponse & {
+      privacyMode?: "locked" | "unlocked";
+      valuesUnlocked?: boolean;
+      spendByCategoryPercent?: Record<string, number>;
+    }) | null
+  >(null);
+  const spendRangeLabel = durationRange("last-3-months", "", "").label;
 
   const [displayUnit, setDisplayUnit] = useState<DisplayUnit>("percent");
   const [projectionRate, setProjectionRate] = useState<ReturnPeriod>("life");
@@ -84,16 +97,26 @@ export function useInvestmentPlan() {
     }
     setError(null);
     try {
-      const [summaryRes, planRes, allocationRes] = await Promise.all([
+      const spendRange = durationRange("last-3-months", "", "");
+      const spendDates = clampSummaryDateRange(
+        spendRange.startDate,
+        spendRange.endDate
+      );
+      const [summaryRes, planRes, allocationRes, spendRes] = await Promise.all([
         api.getInvestmentPlanSummary(),
         api.getInvestmentPlan(),
         api.getInvestmentPlanAllocation(),
+        api.getTransactionSummary({
+          startDate: spendDates.startDate,
+          endDate: spendDates.endDate,
+        }),
       ]);
       setSummary(summaryRes.summary);
       setPlan(planRes.plan);
       setAllocation(allocationRes.classes);
       setNetWorth(allocationRes.netWorth);
       setActualTotalDollars(allocationRes.actualTotalDollars);
+      setSpendSummary(spendRes);
       userEditedPlan.current = false;
       hasLoaded.current = true;
     } catch (err) {
@@ -404,6 +427,9 @@ export function useInvestmentPlan() {
     netWorth,
     actualTotalDollars,
     valuesUnlocked: isUnlocked,
+    spendSummary,
+    spendRangeLabel,
+    spendValuesUnlocked: isUnlocked && spendSummary?.valuesUnlocked !== false,
     displayUnit,
     setDisplayUnit,
     projectionRate,

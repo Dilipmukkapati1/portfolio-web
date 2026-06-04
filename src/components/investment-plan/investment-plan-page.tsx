@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { PageHeaderControls } from "./page-header-controls";
 import { AllocationDonut } from "./allocation-donut";
 import { PortfolioOutlook } from "./portfolio-outlook";
+import { SpendingSnapshot } from "./spending-snapshot";
 import { InstrumentExplorer } from "./instrument-explorer";
 import { HoldingsList } from "./holdings-list";
 import {
@@ -91,6 +92,20 @@ export function InvestmentPlanPage() {
       </CardHeader>
       <CardContent>{allocationContent}</CardContent>
     </Card>
+  );
+
+  const spendingSnapshot = (
+    <SpendingSnapshot
+      summary={state.spendSummary}
+      valuesUnlocked={state.spendValuesUnlocked}
+      rangeLabel={state.spendRangeLabel}
+    />
+  );
+
+  const spendingCard = isMobile ? (
+    <InvestmentPlanMobileSection>{spendingSnapshot}</InvestmentPlanMobileSection>
+  ) : (
+    spendingSnapshot
   );
 
   const portfolioOutlookProps = {
@@ -200,7 +215,12 @@ export function InvestmentPlanPage() {
       {isMobile ? (
         <>
           <div role="tabpanel" aria-label={mobileTab}>
-            {mobileTab === "allocation" && allocationCard}
+            {mobileTab === "allocation" && (
+              <>
+                {spendingCard}
+                {allocationCard}
+              </>
+            )}
             {mobileTab === "plan" && planByInstrumentCard}
             {mobileTab === "outlook" && portfolioOutlookCard}
           </div>
@@ -209,6 +229,7 @@ export function InvestmentPlanPage() {
       ) : (
         <div className="grid grid-cols-2 items-start gap-6">
           <div className="flex min-w-0 flex-col gap-6">
+            {spendingCard}
             {allocationCard}
             {portfolioOutlookCard}
           </div>

@@ -13,6 +13,7 @@ import { api } from "@/lib/api";
 import { usePrivacy } from "@/components/PrivacyProvider";
 import type { DurationPreset } from "@/lib/expense-planner/date-ranges";
 import {
+  clampSummaryDateRange,
   durationRange,
   isRangeWithinLimit,
   toIsoDate,
@@ -109,15 +110,25 @@ export function useExpensePlanner() {
         return;
       }
 
+      const summaryDates = clampSummaryDateRange(
+        currentRange.startDate,
+        currentRange.endDate
+      );
+      const monthRange = durationRange("current-month", customStart, customEnd);
+      const monthDates = clampSummaryDateRange(
+        monthRange.startDate,
+        monthRange.endDate
+      );
+
       const [planRes, summaryRes, monthRes] = await Promise.all([
         api.getExpensePlan(),
         api.getTransactionSummary({
-          startDate: currentRange.startDate,
-          endDate: currentRange.endDate,
+          startDate: summaryDates.startDate,
+          endDate: summaryDates.endDate,
         }),
         api.getTransactionSummary({
-          startDate: durationRange("current-month", customStart, customEnd).startDate,
-          endDate: durationRange("current-month", customStart, customEnd).endDate,
+          startDate: monthDates.startDate,
+          endDate: monthDates.endDate,
         }),
       ]);
       setPlan(planRes.plan);

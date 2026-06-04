@@ -12,6 +12,11 @@ import { StatCard } from "@/components/shared/stat-card";
 import { formatCurrency, formatPercent } from "@/lib/utils";
 import type { DurationPreset } from "@/lib/expense-planner/date-ranges";
 import { mergeCategoryLabel, visibleCategoryPreferences } from "@/lib/expense-planner/categories";
+import {
+  buildCategoryPieData,
+  hasSpendData,
+  pieChartTotal,
+} from "@/lib/expense-planner/summary-display";
 import { BudgetUsageBar } from "./budget-usage-bar";
 import { DurationSelectRow, type OverviewPieView } from "./duration-select-row";
 import { ExpensePieChart, ExpensePieLegend } from "./expense-pie-chart";
@@ -34,15 +39,16 @@ export function OverviewTab({
   const usedPct = budgetUsedPercent(totalSpend, budgetRange);
   const valuesUnlocked = state.valuesUnlocked;
 
-  const categoryPieData = useMemo(() => {
-    const spend = state.summary?.spendByCategory ?? {};
-    return visible
-      .map((c) => ({
-        label: mergeCategoryLabel(c.category, categories),
-        value: spend[c.category] ?? 0,
-      }))
-      .filter((d) => d.value > 0);
-  }, [visible, state.summary?.spendByCategory, categories]);
+  const categoryPieData = useMemo(
+    () =>
+      buildCategoryPieData(
+        state.summary,
+        visible,
+        (category) => mergeCategoryLabel(category, categories),
+        valuesUnlocked
+      ),
+    [visible, state.summary, categories, valuesUnlocked]
+  );
 
   const accountPieData = useMemo(() => {
     const spend = valuesUnlocked
@@ -65,10 +71,11 @@ export function OverviewTab({
   }, [state.summary, valuesUnlocked]);
 
   const activeData = pieView === "category" ? categoryPieData : accountPieData;
-  const activeTotal =
+  const unlockedDenominator =
     pieView === "category"
       ? totalSpend
       : activeData.reduce((s, d) => s + d.value, 0);
+  const activeTotal = pieChartTotal(activeData, valuesUnlocked, unlockedDenominator);
 
   const redFlags = buildRedFlags({
     totalSpend,
@@ -76,7 +83,10 @@ export function OverviewTab({
     budgetUsedPct: usedPct,
     duration: state.duration as DurationPreset,
     rangeLabel: state.range.label,
-    spendByCategory: state.summary?.spendByCategory ?? {},
+    spendByCategory:
+      valuesUnlocked && state.summary?.spendByCategory
+        ? state.summary.spendByCategory
+        : {},
     categories,
     unmappedCount: state.unmappedTransactions.length,
     unmappedAmount: state.unmappedTransactions.reduce(
@@ -130,16 +140,25 @@ export function OverviewTab({
           <CardTitle className="text-base">Spending breakdown</CardTitle>
         </CardHeader>
         <CardContent>
+          {!hasSpendData(state.summary) ? (
+            <p className="text-sm text-muted-foreground">
+              No synced transactions in this period. Connect SimpleFIN and sync from
+              Connections, then pick a range that includes your activity.
+            </p>
+          ) : (
           <ExpensePieChart
             data={activeData}
             total={activeTotal}
-            valuesUnlocked={valuesUnlocked || pieView === "account"}
+            valuesUnlocked={valuesUnlocked}
           />
+          )}
+          {hasSpendData(state.summary) && (
           <ExpensePieLegend
             data={activeData}
             total={activeTotal}
-            valuesUnlocked={valuesUnlocked || pieView === "account"}
+            valuesUnlocked={valuesUnlocked}
           />
+          )}
         </CardContent>
       </Card>
     </div>

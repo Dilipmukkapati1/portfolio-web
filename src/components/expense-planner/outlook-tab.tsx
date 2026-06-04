@@ -28,6 +28,7 @@ import {
   type OutlookPreset,
   toIsoDate,
 } from "@/lib/expense-planner/date-ranges";
+import { categorySpendSlice } from "@/lib/expense-planner/summary-display";
 import { ExpenseOutlookChart } from "./expense-outlook-chart";
 import type { useExpensePlanner } from "@/hooks/use-expense-planner";
 
@@ -49,6 +50,7 @@ export function OutlookTab({ state }: { state: PlannerState }) {
 
   const categories = state.plan?.categories ?? [];
   const visible = visibleCategoryPreferences(categories);
+  const valuesUnlocked = state.valuesUnlocked;
   const outlookPeriod = outlookRange(
     outlookPreset,
     outlookCustomStart,
@@ -60,8 +62,14 @@ export function OutlookTab({ state }: { state: PlannerState }) {
 
   const currentSpend =
     outlookCategory === "all"
-      ? state.currentMonthSummary?.totalSpend ?? 0
-      : state.currentMonthSummary?.spendByCategory?.[outlookCategory] ?? 0;
+      ? valuesUnlocked
+        ? (state.currentMonthSummary?.totalSpend ?? 0)
+        : 0
+      : categorySpendSlice(
+          state.currentMonthSummary,
+          outlookCategory,
+          valuesUnlocked
+        );
 
   const monthlyPace = projectedMonthlyPace(currentSpend, dayOfMonth, daysInMonth);
   const monthlyBudget =
@@ -73,7 +81,7 @@ export function OutlookTab({ state }: { state: PlannerState }) {
     monthlyPace,
     monthCount: outlookPeriod.monthCount,
     monthlyBudget,
-    actualInPeriod: state.summary?.totalSpend ?? 0,
+    actualInPeriod: valuesUnlocked ? (state.summary?.totalSpend ?? 0) : 0,
   });
 
   const chartData = useMemo(() => {
@@ -170,14 +178,20 @@ export function OutlookTab({ state }: { state: PlannerState }) {
         <div className="flex w-max items-center gap-2">
           <span className="text-muted-foreground">Expected</span>
           <span className="font-semibold">
-            {formatCurrency(outlook.projected, { decimals: 0 })}
+            {valuesUnlocked
+              ? formatCurrency(outlook.projected, { decimals: 0 })
+              : "Unlock to view"}
           </span>
           <span className="text-muted-foreground">·</span>
           <span className="text-muted-foreground">Planned</span>
           <span className="font-semibold">
             {formatCurrency(outlook.budget, { decimals: 0 })}
           </span>
-          <Badge variant={outlook.delta > 0 ? "destructive" : "secondary"}>{deltaText}</Badge>
+          {valuesUnlocked && (
+            <Badge variant={outlook.delta > 0 ? "destructive" : "secondary"}>
+              {deltaText}
+            </Badge>
+          )}
         </div>
       </div>
 
@@ -206,12 +220,23 @@ export function OutlookTab({ state }: { state: PlannerState }) {
             .filter((c) => c.monthlyBudget > 0)
             .slice(0, 8)
             .map((cat) => {
-              const catSpend =
-                state.currentMonthSummary?.spendByCategory?.[cat.category] ?? 0;
-              const pace = projectedMonthlyPace(catSpend, dayOfMonth, daysInMonth);
+              const catSpend = categorySpendSlice(
+                state.currentMonthSummary,
+                cat.category,
+                valuesUnlocked
+              );
+              const pace = projectedMonthlyPace(
+                valuesUnlocked ? catSpend : 0,
+                dayOfMonth,
+                daysInMonth
+              );
               const projected = pace * outlookPeriod.monthCount;
               const budget = cat.monthlyBudget * outlookPeriod.monthCount;
-              const pct = budget > 0 ? (projected / budget) * 100 : 0;
+              const pct = valuesUnlocked
+                ? budget > 0
+                  ? (projected / budget) * 100
+                  : 0
+                : catSpend;
               return (
                 <div key={cat.category} className="flex items-center justify-between gap-2">
                   <div className="min-w-0">
@@ -219,14 +244,28 @@ export function OutlookTab({ state }: { state: PlannerState }) {
                       {mergeCategoryLabel(cat.category, categories)}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      Expected {formatCurrency(projected, { decimals: 0 })} · Budget{" "}
-                      {formatCurrency(budget, { decimals: 0 })}
+                      {valuesUnlocked ? (
+                        <>
+                          Expected {formatCurrency(projected, { decimals: 0 })} · Budget{" "}
+                          {formatCurrency(budget, { decimals: 0 })}
+                        </>
+                      ) : (
+                        <>Share of {new Date().toLocaleString("en-US", { month: "long" })} spend</>
+                      )}
                     </p>
                   </div>
                   <Badge
-                    variant={pct >= 100 ? "destructive" : pct >= 85 ? "outline" : "secondary"}
+                    variant={
+                      valuesUnlocked
+                        ? pct >= 100
+                          ? "destructive"
+                          : pct >= 85
+                            ? "outline"
+                            : "secondary"
+                        : "secondary"
+                    }
                   >
-                    {formatPercent(pct, 0)}
+                    {valuesUnlocked ? formatPercent(pct, 0) : formatPercent(catSpend, 0)}
                   </Badge>
                 </div>
               );

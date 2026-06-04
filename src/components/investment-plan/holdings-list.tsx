@@ -37,13 +37,84 @@ function formatValue(
     : formatPercent(percent);
 }
 
-function milestoneFuture(
-  projection: ReturnType<typeof computeInstrumentProjection>,
+type InstrumentProjection = ReturnType<typeof computeInstrumentProjection>;
+
+function milestoneFuture(projection: InstrumentProjection | null, years: number): string {
+  const value = milestoneFutureValue(projection, years);
+  return value != null ? formatCompactCurrency(value) : "—";
+}
+
+function milestoneFutureValue(
+  projection: InstrumentProjection | null,
   years: number
-): string {
-  if (!projection) return "—";
+): number | null {
+  if (!projection) return null;
   const m = projection.milestones.find((x) => x.years === years);
-  return m ? formatCompactCurrency(m.future) : "—";
+  return m?.future ?? null;
+}
+
+type SectionTotals = {
+  percentNw: number;
+  today: number;
+  horizons: Record<number, number>;
+};
+
+function computeSectionTotals(
+  items: PlannedInstrument[],
+  projectionsById: Map<string, InstrumentProjection | null | undefined>,
+  netWorth: number
+): SectionTotals {
+  const horizons = Object.fromEntries(
+    PROJECTION_HORIZONS.map((years) => [years, 0])
+  ) as Record<number, number>;
+
+  let percentNw = 0;
+  let today = 0;
+
+  for (const item of items) {
+    percentNw += instrumentPercent(item, netWorth);
+    const principal = instrumentDollars(item, netWorth);
+    const projection = projectionsById.get(item.id) ?? null;
+    today += projection?.totalPrincipal ?? principal;
+    for (const years of PROJECTION_HORIZONS) {
+      const future = milestoneFutureValue(projection, years);
+      if (future != null) horizons[years] += future;
+    }
+  }
+
+  return { percentNw, today, horizons };
+}
+
+function SectionTotalsRow({
+  totals,
+  hideAmounts,
+}: {
+  totals: SectionTotals;
+  hideAmounts: boolean;
+}) {
+  const totalCell = cn(tdClass, "bg-muted text-right");
+
+  return (
+    <tr className="border-t bg-muted font-medium">
+      <td
+        className={cn(
+          "sticky left-0 z-[2] bg-muted py-2 pl-1.5 pr-0.5 text-sm text-muted-foreground",
+          symbolColClass
+        )}
+      >
+        Total
+      </td>
+      <td className={totalCell}>{formatPercent(totals.percentNw)}</td>
+      <td className={totalCell}>
+        {formatCompactCurrency(totals.today, { hidden: hideAmounts })}
+      </td>
+      {PROJECTION_HORIZONS.map((years) => (
+        <td key={years} className={cn(totalCell, "text-primary/90")}>
+          {formatCompactCurrency(totals.horizons[years], { hidden: hideAmounts })}
+        </td>
+      ))}
+    </tr>
+  );
 }
 
 const thClass =
@@ -194,6 +265,12 @@ export function HoldingsList({
       {byClass.map((section) => {
         const subtotal = section.rollup;
         const classAccent = ASSET_CLASS_COLORS[section.assetClass];
+        const sectionTotals = computeSectionTotals(
+          section.items,
+          projectionsById,
+          netWorth
+        );
+        const hideAmounts = displayUnit === "dollar" && !valuesUnlocked;
 
         return (
           <div
@@ -291,6 +368,7 @@ export function HoldingsList({
                     </tr>
                   );
                 })}
+                <SectionTotalsRow totals={sectionTotals} hideAmounts={hideAmounts} />
               </tbody>
             </table>
           </div>

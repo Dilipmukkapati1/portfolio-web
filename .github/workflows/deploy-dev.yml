@@ -43,12 +43,14 @@ jobs:
       - name: Deploy Static Web App
         env:
           SWA_DEPLOYMENT_TOKEN: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+          FUNCTION_APP_BASE_URL: ${{ vars.FUNCTION_APP_BASE_URL }}
         run: |
+          api_base="${FUNCTION_APP_BASE_URL:-https://ppm-dev-func-x32hrp.azurewebsites.net}"
+          export NEXT_PUBLIC_API_URL="${api_base%/}/api"
+          export NEXT_PUBLIC_APP_ENV=development
+          export NEXT_PUBLIC_DEFAULT_HOUSEHOLD_ID=dev-household
           rm -rf .next .swa-deploy
-          cd ..
           npx --yes @azure/static-web-apps-cli deploy \
-            --app-location portfolio-web \
-            --api-location "" \
-            --output-location "" \
+            --config swa-cli.config.json \
             --env production \
             --deployment-token "$SWA_DEPLOYMENT_TOKEN"

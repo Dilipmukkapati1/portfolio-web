@@ -1,14 +1,14 @@
-name: Deploy dev
+name: Deploy prod
 
 on:
   push:
-    branches: [develop]
+    branches: [main]
   workflow_dispatch:
   repository_dispatch:
-    types: [deploy-dev]
+    types: [deploy-prod]
 
 concurrency:
-  group: deploy-dev-web
+  group: deploy-prod-web
   cancel-in-progress: true
 
 env:
@@ -17,7 +17,7 @@ env:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    environment: dev
+    environment: prod
     steps:
       - uses: actions/checkout@v4
         with:
@@ -28,14 +28,14 @@ jobs:
           node-version: "20"
           cache: npm
 
-      - name: Build for Azure dev
+      - name: Build for Azure prod
         env:
           FUNCTION_APP_BASE_URL: ${{ vars.FUNCTION_APP_BASE_URL }}
         run: |
-          api_base="${FUNCTION_APP_BASE_URL:-https://ppm-dev-func-x32hrp.azurewebsites.net}"
+          api_base="${FUNCTION_APP_BASE_URL:-https://ppm-prod-func-x32hrp.azurewebsites.net}"
           export NEXT_PUBLIC_API_URL="${api_base%/}/api"
-          export NEXT_PUBLIC_APP_ENV=development
-          export NEXT_PUBLIC_DEFAULT_HOUSEHOLD_ID=dev-household
+          export NEXT_PUBLIC_APP_ENV=production
+          export NEXT_PUBLIC_DEFAULT_HOUSEHOLD_ID=prod-household
           echo "NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}"
           npm ci
           npm run build

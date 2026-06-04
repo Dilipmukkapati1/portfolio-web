@@ -51,4 +51,4 @@ npm run deploy -- dev --skip-build
 
 Deploy the API separately: `cd ../portfolio-api && npm run deploy:dev`.
 
-**CI:** GitHub Actions on `main` also deploys to dev when `AZURE_STATIC_WEB_APPS_API_TOKEN` is configured.
+**CI/CD:** Push to `develop` deploys Azure dev; merge to `main` deploys Azure prod. Configure `AZURE_STATIC_WEB_APPS_API_TOKEN` and `vars.FUNCTION_APP_BASE_URL` in GitHub environments `dev` and `prod` (see `portfolio-infra/docs/github-wiring.md`).

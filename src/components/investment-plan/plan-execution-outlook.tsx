@@ -60,9 +60,7 @@ export function PlanExecutionOutlookSummary({
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-sm font-medium">Overall outlook</p>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            Plan vs executed · weighted by target size
-          </p>
+          <p className="mt-0.5 text-xs text-muted-foreground">Plan vs executed</p>
         </div>
         <div className="shrink-0 text-right">
           <p className={cn("text-2xl font-semibold tabular-nums leading-none", toneClass)}>

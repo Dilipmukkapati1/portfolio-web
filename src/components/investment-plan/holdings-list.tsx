@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useMemo } from "react";
+import { useMemo } from "react";
 import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import type {
   AllocationClassRollup,
@@ -47,10 +47,34 @@ function milestoneFuture(
 }
 
 const thClass =
-  "px-2 py-2 text-left text-xs font-medium text-muted-foreground whitespace-nowrap";
+  "px-2 py-2 text-xs font-medium text-muted-foreground whitespace-nowrap";
 const tdClass = "px-2 py-2 align-middle whitespace-nowrap tabular-nums text-sm";
-const tdMuted = cn(tdClass, "text-muted-foreground");
 const symbolColClass = "w-[5.67rem] min-w-[5.67rem] max-w-[5.67rem]";
+
+function HoldingsTableHeader() {
+  return (
+    <thead>
+      <tr className="border-b bg-background">
+        <th
+          className={cn(
+            thClass,
+            symbolColClass,
+            "sticky left-0 z-10 bg-background text-left text-muted-foreground"
+          )}
+        >
+          Symbol
+        </th>
+        <th className={cn(thClass, "text-right")}>% NW</th>
+        <th className={cn(thClass, "text-right")}>Today</th>
+        {PROJECTION_HORIZONS.map((years) => (
+          <th key={years} className={cn(thClass, "text-right")}>
+            {years} yr
+          </th>
+        ))}
+      </tr>
+    </thead>
+  );
+}
 
 function HoldingActionsMenu({
   itemId,
@@ -166,60 +190,40 @@ export function HoldingsList({
   }
 
   return (
-    <div className="overflow-x-auto [-webkit-overflow-scrolling:touch]">
-      <table className="w-full min-w-[34rem] border-collapse text-sm">
-        <thead>
-          <tr className="border-b">
-            <th className={cn(thClass, symbolColClass, "sticky left-0 z-10 bg-background")}>
-              Symbol
-            </th>
-            <th className={cn(thClass, "text-right")}>% NW</th>
-            <th className={cn(thClass, "text-right")}>Today</th>
-            {PROJECTION_HORIZONS.map((years) => (
-              <th key={years} className={cn(thClass, "text-right")}>
-                {years} yr
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {byClass.map((section) => {
-            const subtotal = section.rollup;
-            const classAccent = ASSET_CLASS_COLORS[section.assetClass];
+    <div className="space-y-3">
+      {byClass.map((section) => {
+        const subtotal = section.rollup;
+        const classAccent = ASSET_CLASS_COLORS[section.assetClass];
 
-            return (
-              <Fragment key={section.assetClass}>
-                <tr className="border-b bg-muted/40">
-                  <td
-                    className={cn(
-                      "sticky left-0 z-[1] bg-muted/40 py-2 pl-1.5 pr-0.5",
-                      symbolColClass
-                    )}
-                    style={{ borderLeftWidth: 3, borderLeftColor: classAccent }}
-                  >
-                    <div className="flex min-w-0 items-center gap-2">
-                      <span
-                        className="h-2.5 w-2.5 shrink-0 rounded-full"
-                        style={{ background: classAccent }}
-                      />
-                      <span className="font-semibold">{section.label}</span>
-                      <span className="text-xs text-muted-foreground">
-                        {section.items.length}
-                      </span>
-                    </div>
-                  </td>
-                  <td className={cn(tdClass, "text-right text-muted-foreground")}>
-                    {subtotal
-                      ? formatValue(
-                          displayUnit,
-                          subtotal.planDollars,
-                          subtotal.planPercent,
-                          displayUnit === "dollar" && !valuesUnlocked
-                        )
-                      : "—"}
-                  </td>
-                  <td colSpan={PROJECTION_HORIZONS.length + 1} className={tdMuted} />
-                </tr>
+        return (
+          <div
+            key={section.assetClass}
+            className="overflow-x-auto rounded-md border [-webkit-overflow-scrolling:touch]"
+          >
+            <div
+              className="flex min-w-[34rem] items-center gap-2 border-b bg-muted/40 px-2 py-2"
+              style={{ borderLeftWidth: 3, borderLeftColor: classAccent }}
+            >
+              <span
+                className="h-2.5 w-2.5 shrink-0 rounded-full"
+                style={{ background: classAccent }}
+              />
+              <span className="font-semibold">{section.label}</span>
+              <span className="text-xs text-muted-foreground">{section.items.length}</span>
+              <span className="ml-auto text-sm tabular-nums text-muted-foreground">
+                {subtotal
+                  ? formatValue(
+                      displayUnit,
+                      subtotal.planDollars,
+                      subtotal.planPercent,
+                      displayUnit === "dollar" && !valuesUnlocked
+                    )
+                  : "—"}
+              </span>
+            </div>
+            <table className="w-full min-w-[34rem] border-collapse text-sm">
+              <HoldingsTableHeader />
+              <tbody>
                 {section.items.map((item) => {
                   const profile = profileForInstrument(item);
                   const pct = instrumentPercent(item, netWorth);
@@ -287,11 +291,11 @@ export function HoldingsList({
                     </tr>
                   );
                 })}
-              </Fragment>
-            );
-          })}
-        </tbody>
-      </table>
+              </tbody>
+            </table>
+          </div>
+        );
+      })}
     </div>
   );
 }

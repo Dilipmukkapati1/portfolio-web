@@ -10,6 +10,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatCard } from "@/components/shared/stat-card";
 import { formatCurrency, formatPercent } from "@/lib/utils";
+import type { TransactionCategory } from "@portfolio/contracts";
 import type { DurationPreset } from "@/lib/expense-planner/date-ranges";
 import { mergeCategoryLabel, visibleCategoryPreferences } from "@/lib/expense-planner/categories";
 import {
@@ -44,7 +45,8 @@ export function OverviewTab({
       buildCategoryPieData(
         state.summary,
         visible,
-        (category) => mergeCategoryLabel(category, categories),
+        (category) =>
+          mergeCategoryLabel(category as TransactionCategory, categories),
         valuesUnlocked
       ),
     [visible, state.summary, categories, valuesUnlocked]

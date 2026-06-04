@@ -10,7 +10,10 @@ import {
   type ExpenseSummaryView,
 } from "@/lib/expense-planner/summary-display";
 import { mergeCategoryLabel } from "@/lib/expense-planner/categories";
-import type { ExpenseCategoryPreference } from "@portfolio/contracts";
+import type {
+  ExpenseCategoryPreference,
+  TransactionCategory,
+} from "@portfolio/contracts";
 
 export function SpendingSnapshot({
   summary,
@@ -62,7 +65,10 @@ export function SpendingSnapshot({
                   className="flex items-center justify-between gap-2 text-sm"
                 >
                   <span className="min-w-0 truncate">
-                    {mergeCategoryLabel(row.category, planCategories)}
+                    {mergeCategoryLabel(
+                      row.category as TransactionCategory,
+                      planCategories
+                    )}
                   </span>
                   <span className="shrink-0 font-medium tabular-nums">
                     {valuesUnlocked

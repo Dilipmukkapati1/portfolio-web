@@ -16,90 +16,32 @@ import {
 } from "@/lib/investment-plan/ring-segments";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { Button } from "@/components/ui/button";
-import { cn, formatPercent } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
 function allocationDeltaTone(deltaPct: number): string {
   if (Math.abs(deltaPct) < 0.5) return "text-muted-foreground";
   return deltaPct > 0 ? "text-green-600 dark:text-green-400" : "text-amber-600 dark:text-amber-400";
 }
 
-function AllocationPieChart({
-  title,
-  slices,
-  size,
-  focusedLabel,
-  onFocus,
-  onClearFocus,
-}: {
-  title: string;
-  slices: { label: string; value: number; fill: string }[];
-  size: number;
-  focusedLabel: string | null;
-  onFocus: (label: string | null) => void;
-  onClearFocus: () => void;
-}) {
-  const cx = size / 2;
-  const cy = size / 2;
-  const radius = size * 0.45;
-
-  const segments = buildRingSegments(cx, cy, 0, radius, slices);
-
-  const sliceOpacity = (label: string) =>
-    !focusedLabel || focusedLabel === label ? 1 : 0.28;
-
-  return (
-    <div className="flex flex-col items-center gap-1.5">
-      <p className="text-xs font-medium text-muted-foreground">{title}</p>
-      <svg
-        width={size}
-        height={size}
-        viewBox={`0 0 ${size} ${size}`}
-        className="max-w-full touch-manipulation"
-        role="img"
-        aria-label={`${title} allocation by asset class`}
-        onMouseLeave={onClearFocus}
-      >
-        {segments.length === 0 ? (
-          <circle
-            cx={cx}
-            cy={cy}
-            r={radius}
-            className="fill-muted stroke-border"
-            strokeWidth={1}
-          />
-        ) : (
-          segments.map((seg) => (
-            <PieSlice
-              key={`${title}-${seg.label}`}
-              seg={seg}
-              focused={focusedLabel === seg.label}
-              opacity={sliceOpacity(seg.label)}
-              onFocus={onFocus}
-            />
-          ))
-        )}
-      </svg>
-    </div>
-  );
-}
-
-function PieSlice({
+function SunburstSlice({
   seg,
+  layer,
   focused,
   opacity,
   onFocus,
 }: {
   seg: RingSegment;
+  layer: "plan" | "actual";
   focused: boolean;
   opacity: number;
   onFocus: (label: string | null) => void;
 }) {
-  const offset = focused ? 2 : 0;
+  const offset = focused ? (layer === "plan" ? 2 : 1.5) : 0;
   return (
     <path
       d={seg.d}
       fill={seg.fill}
-      opacity={opacity}
+      opacity={opacity * (layer === "actual" && !focused ? 0.94 : 1)}
       className="cursor-pointer stroke-background"
       strokeWidth={focused ? 2 : 1.25}
       strokeLinejoin="round"
@@ -112,6 +54,128 @@ function PieSlice({
       onPointerLeave={() => onFocus(null)}
       onClick={() => onFocus(focused ? null : seg.label)}
     />
+  );
+}
+
+function AllocationSunburst({
+  planSlices,
+  actualSlices,
+  netWorth,
+  size,
+  focusedLabel,
+  onFocus,
+  onClearFocus,
+}: {
+  planSlices: { label: string; value: number; fill: string }[];
+  actualSlices: { label: string; value: number; fill: string }[];
+  netWorth: number;
+  size: number;
+  focusedLabel: string | null;
+  onFocus: (label: string | null) => void;
+  onClearFocus: () => void;
+}) {
+  const cx = size / 2;
+  const cy = size / 2;
+  const outerInner = size * 0.34;
+  const outerOuter = size * 0.48;
+  const innerInner = size * 0.18;
+  const innerOuter = size * 0.3;
+  const hubRadius = size * 0.14;
+
+  const planSegments = buildRingSegments(cx, cy, outerInner, outerOuter, planSlices);
+  const actualSegments = buildRingSegments(cx, cy, innerInner, innerOuter, actualSlices);
+
+  const sliceOpacity = (label: string) =>
+    !focusedLabel || focusedLabel === label ? 1 : 0.28;
+
+  return (
+    <div className="flex shrink-0 flex-col items-center gap-2">
+      <svg
+        width={size}
+        height={size}
+        viewBox={`0 0 ${size} ${size}`}
+        className="max-w-full touch-manipulation"
+        role="img"
+        aria-label="Planned and actual allocation sunburst by asset class. Hover or tap a slice for values."
+        onMouseLeave={onClearFocus}
+      >
+        <circle
+          cx={cx}
+          cy={cy}
+          r={outerOuter + 2}
+          fill="none"
+          className="stroke-border"
+          strokeWidth={1}
+        />
+        <circle
+          cx={cx}
+          cy={cy}
+          r={(outerInner + innerOuter) / 2}
+          fill="none"
+          className="stroke-border"
+          strokeWidth={1}
+          strokeDasharray="3 4"
+          opacity={0.7}
+        />
+        {planSegments.map((seg) => (
+          <SunburstSlice
+            key={`plan-${seg.label}`}
+            seg={seg}
+            layer="plan"
+            focused={focusedLabel === seg.label}
+            opacity={sliceOpacity(seg.label)}
+            onFocus={onFocus}
+          />
+        ))}
+        {actualSegments.map((seg) => (
+          <SunburstSlice
+            key={`actual-${seg.label}`}
+            seg={seg}
+            layer="actual"
+            focused={focusedLabel === seg.label}
+            opacity={sliceOpacity(seg.label)}
+            onFocus={onFocus}
+          />
+        ))}
+        <circle
+          cx={cx}
+          cy={cy}
+          r={hubRadius}
+          className="fill-background stroke-border"
+          strokeWidth={1}
+        />
+        <text
+          x={cx}
+          y={cy - 5}
+          textAnchor="middle"
+          dominantBaseline="middle"
+          className="fill-muted-foreground text-[9px] font-medium"
+          style={{ pointerEvents: "none" }}
+        >
+          Net worth
+        </text>
+        <text
+          x={cx}
+          y={cy + 9}
+          textAnchor="middle"
+          dominantBaseline="middle"
+          className="fill-foreground text-[11px] font-semibold sm:text-xs"
+          style={{ pointerEvents: "none" }}
+        >
+          {formatCompactCurrency(netWorth)}
+        </text>
+      </svg>
+      <div className="flex flex-wrap items-center justify-center gap-2.5">
+        <div className="flex items-center gap-1.5">
+          <span className="box-border h-3.5 w-3.5 rounded-full border-[3px] border-foreground/70 opacity-85" />
+          <span className="text-xs text-muted-foreground">Planned (outer)</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="box-border h-2.5 w-2.5 rounded-full border-[3px] border-foreground/70 opacity-85" />
+          <span className="text-xs text-muted-foreground">Actual (inner)</span>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -135,7 +199,7 @@ export function AllocationDonut({
   const isMobile = useIsMobile();
   const [focusedLabel, setFocusedLabel] = useState<string | null>(null);
 
-  const pieSize = isMobile ? 148 : 168;
+  const chartSize = isMobile ? 200 : 232;
 
   const segments = useMemo(() => {
     const byClass = new Map(classes.map((c) => [c.assetClass, c]));
@@ -181,30 +245,16 @@ export function AllocationDonut({
     ? (activeSegment.actualDollars ?? 0) - activeSegment.planDollars
     : 0;
 
-  const chartsBlock = (
-    <div
-      className={cn(
-        "flex shrink-0 gap-4",
-        isMobile ? "flex-col items-center" : "flex-row items-start justify-center"
-      )}
-    >
-      <AllocationPieChart
-        title="Planned"
-        slices={planSlices}
-        size={pieSize}
-        focusedLabel={focusedLabel}
-        onFocus={setFocusedLabel}
-        onClearFocus={() => setFocusedLabel(null)}
-      />
-      <AllocationPieChart
-        title="Actual"
-        slices={actualSlices}
-        size={pieSize}
-        focusedLabel={focusedLabel}
-        onFocus={setFocusedLabel}
-        onClearFocus={() => setFocusedLabel(null)}
-      />
-    </div>
+  const chartBlock = (
+    <AllocationSunburst
+      planSlices={planSlices}
+      actualSlices={actualSlices}
+      netWorth={netWorth}
+      size={chartSize}
+      focusedLabel={focusedLabel}
+      onFocus={setFocusedLabel}
+      onClearFocus={() => setFocusedLabel(null)}
+    />
   );
 
   const legendBlock = (
@@ -327,20 +377,23 @@ export function AllocationDonut({
     </div>
   ) : null;
 
-  const trailingSummary = `${formatCompactCurrency(netWorth)} net worth · ${plannedTotalPercent.toFixed(1)}% planned · ${formatCompactCurrency(actualTotalDollars ?? 0, { hidden: !valuesUnlocked })} actual`;
+  const trailingSummary = `${plannedTotalPercent.toFixed(1)}% planned · ${formatCompactCurrency(actualTotalDollars ?? 0, { hidden: !valuesUnlocked })} actual`;
 
   return (
     <div className="space-y-3.5">
-      <p className={cn("text-sm text-muted-foreground", !isMobile && "text-right")}>
-        {trailingSummary}
-      </p>
+      {!isMobile && (
+        <p className="text-right text-sm text-muted-foreground">{trailingSummary}</p>
+      )}
+      {isMobile && (
+        <p className="text-sm text-muted-foreground">{trailingSummary}</p>
+      )}
       <div
         className={cn(
           "flex gap-6",
           isMobile ? "flex-col items-center" : "flex-row items-start"
         )}
       >
-        {chartsBlock}
+        {chartBlock}
         {!isMobile && (
           <div className="min-w-[220px] max-w-[380px] flex-1 space-y-3">{legendBlock}</div>
         )}

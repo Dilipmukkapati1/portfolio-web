@@ -265,20 +265,16 @@ export function HoldingsList({
       {byClass.map((section) => {
         const subtotal = section.rollup;
         const classAccent = ASSET_CLASS_COLORS[section.assetClass];
-        const sectionTotals = computeSectionTotals(
-          section.items,
-          projectionsById,
-          netWorth
-        );
+        const showSectionTotal = section.items.length > 1;
+        const sectionTotals = showSectionTotal
+          ? computeSectionTotals(section.items, projectionsById, netWorth)
+          : null;
         const hideAmounts = displayUnit === "dollar" && !valuesUnlocked;
 
         return (
-          <div
-            key={section.assetClass}
-            className="overflow-x-auto rounded-md border [-webkit-overflow-scrolling:touch]"
-          >
+          <div key={section.assetClass} className="overflow-hidden rounded-md border">
             <div
-              className="flex min-w-[34rem] items-center gap-2 border-b bg-muted/40 px-2 py-2"
+              className="flex items-center gap-2 border-b bg-muted/40 px-2 py-2"
               style={{ borderLeftWidth: 3, borderLeftColor: classAccent }}
             >
               <span
@@ -287,7 +283,7 @@ export function HoldingsList({
               />
               <span className="font-semibold">{section.label}</span>
               <span className="text-xs text-muted-foreground">{section.items.length}</span>
-              <span className="ml-auto text-sm tabular-nums text-muted-foreground">
+              <span className="ml-auto shrink-0 text-sm tabular-nums text-muted-foreground">
                 {subtotal
                   ? formatValue(
                       displayUnit,
@@ -298,6 +294,7 @@ export function HoldingsList({
                   : "—"}
               </span>
             </div>
+            <div className="overflow-x-auto [-webkit-overflow-scrolling:touch]">
             <table className="w-full min-w-[34rem] border-collapse text-sm">
               <HoldingsTableHeader />
               <tbody>
@@ -368,9 +365,12 @@ export function HoldingsList({
                     </tr>
                   );
                 })}
-                <SectionTotalsRow totals={sectionTotals} hideAmounts={hideAmounts} />
+                {showSectionTotal && sectionTotals ? (
+                  <SectionTotalsRow totals={sectionTotals} hideAmounts={hideAmounts} />
+                ) : null}
               </tbody>
             </table>
+            </div>
           </div>
         );
       })}

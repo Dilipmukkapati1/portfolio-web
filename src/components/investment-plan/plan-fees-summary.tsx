@@ -36,8 +36,8 @@ export function PlanFeesSummary({
   return (
     <div className="space-y-1.5">
       <p className="text-xs text-muted-foreground">
-        Weighted by planned % of net worth · {fees!.instrumentCount} fund
-        {fees!.instrumentCount === 1 ? "" : "s"} with expense ratios
+        Expense ratio = total est. annual fees ÷ net worth · {fees!.instrumentCount}{" "}
+        fund{fees!.instrumentCount === 1 ? "" : "s"} with expense ratios
       </p>
       <MetricChips chips={chips} />
     </div>

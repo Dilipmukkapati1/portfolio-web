@@ -1,4 +1,4 @@
-import { describe, expect, it, afterEach } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { describeApiTarget, getWebEnv } from "./env.js";
 
 describe("getWebEnv", () => {
@@ -40,6 +40,16 @@ describe("getWebEnv", () => {
       "https://ppm-dev-func-x32hrp.azurewebsites.net/api";
     process.env.NEXT_PUBLIC_DEFAULT_HOUSEHOLD_ID = "local-household";
     expect(getWebEnv().defaultHouseholdId).toBe("dev-household");
+  });
+
+  it("rewrites prod API URL when served from dev Static Web App host", () => {
+    vi.stubGlobal("window", {
+      location: { hostname: "gray-wave-042dd9310.7.azurestaticapps.net" },
+    });
+    process.env.NEXT_PUBLIC_API_URL =
+      "https://ppm-prod-func-x32hrp.azurewebsites.net/api";
+    expect(getWebEnv().apiUrl).toContain("ppm-dev-func");
+    vi.unstubAllGlobals();
   });
 
   it("describes API target from URL", () => {

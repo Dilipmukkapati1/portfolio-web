@@ -37,6 +37,10 @@ jobs:
           export NEXT_PUBLIC_APP_ENV=production
           export NEXT_PUBLIC_DEFAULT_HOUSEHOLD_ID=prod-household
           echo "NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}"
+          if echo "$NEXT_PUBLIC_API_URL" | grep -q "ppm-dev-func"; then
+            echo "::error::Prod deploy must not target dev Function App ($NEXT_PUBLIC_API_URL)"
+            exit 1
+          fi
           npm ci
           npm run build
           test -d .next/standalone

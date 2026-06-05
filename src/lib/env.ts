@@ -37,13 +37,31 @@ const ENV_DEFAULTS = {
   },
 } as const;
 
+/** Dev SWA hostnames — prod builds must not be served here (separate deploy tokens). */
+const DEV_SWA_HOST_MARKERS = ["gray-wave-", "ppm-dev-web"] as const;
+
+function isDevStaticWebHost(hostname: string): boolean {
+  return DEV_SWA_HOST_MARKERS.some((marker) => hostname.includes(marker));
+}
+
+/** Recover when a prod build was accidentally uploaded to the dev Static Web App. */
+function apiUrlForBrowserHost(candidate: string): string {
+  if (typeof window === "undefined") return candidate;
+  const host = window.location.hostname;
+  if (isDevStaticWebHost(host) && candidate.includes("ppm-prod-func")) {
+    return DEV_API_URL;
+  }
+  return candidate;
+}
+
 /** Ignore CI misconfig (e.g. empty DEV_FUNCTION_APP_URL → "/api"). */
 function resolveApiUrl(appEnv: AppEnv, explicit?: string): string {
   const trimmed = explicit?.trim();
   if (trimmed && /^https?:\/\//i.test(trimmed)) {
-    return trimmed;
+    return apiUrlForBrowserHost(trimmed);
   }
-  return ENV_DEFAULTS[appEnv].apiUrl;
+  const fallback = ENV_DEFAULTS[appEnv].apiUrl;
+  return apiUrlForBrowserHost(fallback);
 }
 
 function parseAppEnv(): AppEnv {

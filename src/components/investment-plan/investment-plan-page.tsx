@@ -8,6 +8,7 @@ import { PortfolioOutlook } from "./portfolio-outlook";
 import { PlanExecutionOutlookSummary } from "./plan-execution-outlook";
 import { InstrumentExplorer } from "./instrument-explorer";
 import { HoldingsList } from "./holdings-list";
+import { PlanFeesSummary } from "./plan-fees-summary";
 import {
   InvestmentPlanBottomNav,
   type InvestmentPlanTab,
@@ -66,14 +67,17 @@ export function InvestmentPlanPage() {
   const instruments = state.plan?.instruments ?? [];
 
   const allocationContent = (
-    <AllocationDonut
-      classes={state.allocation}
-      displayUnit={state.displayUnit}
-      netWorth={summary.netWorth}
-      valuesUnlocked={state.valuesUnlocked}
-      plannedTotalPercent={summary.plannedTotalPercent}
-      actualTotalDollars={state.actualTotalDollars}
-    />
+    <div className="space-y-4">
+      <AllocationDonut
+        classes={state.allocation}
+        displayUnit={state.displayUnit}
+        netWorth={summary.netWorth}
+        valuesUnlocked={state.valuesUnlocked}
+        plannedTotalPercent={summary.plannedTotalPercent}
+        actualTotalDollars={state.actualTotalDollars}
+      />
+      <PlanFeesSummary fees={state.aggregatedPlanFees} />
+    </div>
   );
 
   const executionOutlookSummary = (
@@ -114,6 +118,7 @@ export function InvestmentPlanPage() {
     instrumentCount: summary.instrumentCount,
     unallocatedDollars: summary.unallocatedDollars,
     unallocatedPercent: summary.unallocatedPercent,
+    aggregatedPlanFees: state.aggregatedPlanFees,
     projectionRate: state.projectionRate,
     onProjectionRateChange: state.setProjectionRate,
     reinvestDividends: state.reinvestDividends,

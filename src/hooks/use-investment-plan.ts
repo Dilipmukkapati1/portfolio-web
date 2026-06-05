@@ -14,6 +14,7 @@ import type {
 import {
   buildAllocationSegments,
   buildInstrumentExecutionRollups,
+  computeAggregatedPlanFees,
   computeInstrumentProjection,
   computePlanExecutionOutlook,
   computePlanProjection,
@@ -22,6 +23,7 @@ import {
   instrumentPercent,
   sumByClass,
   tickerFromName,
+  type AggregatedPlanFees,
   type AssetClass,
 } from "@portfolio/contracts";
 import { api } from "@/lib/api";
@@ -231,6 +233,15 @@ export function useInvestmentPlan() {
     projectionRate,
     reinvestDividends,
   ]);
+
+  const aggregatedPlanFees = useMemo((): AggregatedPlanFees | null => {
+    if (!summary || instruments.length === 0) return null;
+    return computeAggregatedPlanFees({
+      instruments,
+      netWorth: summary.netWorth,
+      profileForInstrument: profileResolver,
+    });
+  }, [instruments, profileResolver, summary]);
 
   const explorerPrincipal = useMemo(() => {
     if (!summary) return 0;
@@ -445,6 +456,7 @@ export function useInvestmentPlan() {
     profile,
     explorerProjection,
     portfolioProjection,
+    aggregatedPlanFees,
     inferredAssetClass,
     profileForInstrument: profileResolver,
     refetch,

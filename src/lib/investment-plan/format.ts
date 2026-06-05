@@ -41,3 +41,8 @@ export function instrumentShortName(name: string): string {
   const match = name.match(/[—–-]\s*(.+)/);
   return match ? match[1].trim() : name;
 }
+
+/** Expense ratio stored as decimal (e.g. 0.0003 → 0.03%). */
+export function formatExpenseRatio(ratio: number): string {
+  return `${(ratio * 100).toFixed(2)}%`;
+}

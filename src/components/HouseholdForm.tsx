@@ -60,8 +60,8 @@ export function memberToDraft(m: Member): MemberDraft {
     name: m.name,
     relationship: m.relationship,
     isActive: m.isActive,
-    incomeSources: m.incomeSources,
-    contributions: m.contributions,
+    incomeSources: m.incomeSources ?? [],
+    contributions: m.contributions ?? [],
   };
 }
 

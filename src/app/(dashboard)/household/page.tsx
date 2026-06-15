@@ -47,6 +47,7 @@ export default function HouseholdManagePage() {
   const [editMembers, setEditMembers] = useState<Member[]>([]);
   const [editTaxProfile, setEditTaxProfile] = useState<TaxProfile | null>(null);
   const [panelLoading, setPanelLoading] = useState(false);
+  const [panelError, setPanelError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [createFormKey, setCreateFormKey] = useState(() => suggestHouseholdId());
@@ -122,6 +123,28 @@ export default function HouseholdManagePage() {
     else setSelected(new Set(households.map((h) => h.householdId)));
   }
 
+  async function loadEditPanelData(household: Household) {
+    const year =
+      household.settings?.defaultTaxYear ?? new Date().getFullYear();
+    const [membersRes, taxProfile] = await Promise.all([
+      api.listMembers(household.householdId),
+      api.getTaxProfile(year, household.householdId).catch(() => null),
+    ]);
+    if (membersRes.valuesUnlocked === false) {
+      throw new Error(
+        "Unlock dollar values to view and edit member income."
+      );
+    }
+    setEditMembers(
+      membersRes.members.map((m) => ({
+        ...m,
+        incomeSources: m.incomeSources ?? [],
+        contributions: m.contributions ?? [],
+      }))
+    );
+    setEditTaxProfile(taxProfile);
+  }
+
   async function openCreate() {
     if (!isUnlocked) {
       showUnlockDialog();
@@ -134,6 +157,7 @@ export default function HouseholdManagePage() {
     setPanel("create");
     setMessage(null);
     setError(null);
+    setPanelError(null);
   }
 
   async function openEdit(household: Household) {
@@ -144,20 +168,47 @@ export default function HouseholdManagePage() {
     setEditingHousehold(household);
     setPanel("edit");
     setMessage(null);
+    setPanelError(null);
     setPanelLoading(true);
     try {
-      const year =
-        household.settings?.defaultTaxYear ?? new Date().getFullYear();
-      const [membersRes, taxProfile] = await Promise.all([
-        api.listMembers(household.householdId).catch(() => ({ members: [] })),
-        api.getTaxProfile(year, household.householdId).catch(() => null),
-      ]);
-      setEditMembers(membersRes.members);
-      setEditTaxProfile(taxProfile);
+      await loadEditPanelData(household);
+    } catch (e) {
+      const msg =
+        e instanceof Error ? e.message : "Failed to load household members";
+      setPanelError(msg);
+      setEditMembers([]);
+      setEditTaxProfile(null);
     } finally {
       setPanelLoading(false);
     }
   }
+
+  useEffect(() => {
+    if (panel !== "edit" || !editingHousehold || !isUnlocked || panelLoading) {
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      setPanelLoading(true);
+      setPanelError(null);
+      try {
+        await loadEditPanelData(editingHousehold);
+      } catch (e) {
+        if (!cancelled) {
+          setPanelError(
+            e instanceof Error ? e.message : "Failed to load household members"
+          );
+        }
+      } finally {
+        if (!cancelled) setPanelLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // Reload member income when privacy unlocks mid-edit.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [privacyVersion]);
 
   function closePanel() {
     if (saving) return;
@@ -165,6 +216,7 @@ export default function HouseholdManagePage() {
     setEditingHousehold(null);
     setEditMembers([]);
     setEditTaxProfile(null);
+    setPanelError(null);
   }
 
   async function saveHouseholdBundle(
@@ -218,9 +270,9 @@ export default function HouseholdManagePage() {
     setError(null);
     try {
       const { householdId } = values;
-      await saveHouseholdBundle(householdId, values, true);
       registerHouseholdId(householdId);
       setHouseholdId(householdId);
+      await saveHouseholdBundle(householdId, values, true);
       setMessage(`Created "${values.displayName}".`);
       closePanel();
       await loadHouseholds();
@@ -563,6 +615,15 @@ export default function HouseholdManagePage() {
                 <FormPanelSkeleton />
               ) : panel === "edit" && !editInitial ? (
                 <FormPanelSkeleton />
+              ) : panelError ? (
+                <div className="space-y-3">
+                  <p className="text-sm text-red-400 rounded-md bg-red-500/10 px-3 py-2">
+                    {panelError}
+                  </p>
+                  <Button type="button" variant="outline" onClick={closePanel}>
+                    Close
+                  </Button>
+                </div>
               ) : (
                 <HouseholdForm
                   resetKey={

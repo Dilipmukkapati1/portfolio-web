@@ -1,0 +1,329 @@
+"use client";
+
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { formatCompactCurrency } from "@/lib/investment-plan/format";
+import { formatPercent } from "@/lib/utils";
+import {
+  CONTRIBUTION_TYPE_LABELS,
+  type ContributionType,
+  type Member,
+  type TaxProfile,
+} from "@/lib/household-types";
+import type { TaxOutlook } from "@/lib/tax/outlook";
+import {
+  TaxDeferredHistogram,
+  TaxLifetimeLineChart,
+  TaxPaidStackedChart,
+} from "./tax-charts";
+import {
+  TaxPaidBreakdownDesktop,
+  TaxPaidBreakdownMobile,
+  TaxDeferredTable,
+} from "./tax-breakdown";
+import {
+  TaxEarnerPills,
+  TaxSegmentedControl,
+  TaxViewPills,
+  type TaxViewMode,
+} from "./tax-view-controls";
+import { TaxKeyValueRows, TaxPanel, TaxPanelHeader, TaxStat } from "./tax-primitives";
+
+export function TaxContributionRoom({
+  taxProfile,
+  members,
+  valuesUnlocked,
+  compact,
+}: {
+  taxProfile: TaxProfile;
+  members: Member[];
+  valuesUnlocked: boolean;
+  compact?: boolean;
+}) {
+  const limits = taxProfile.contributionLimits ?? [];
+  if (!limits.length) return null;
+
+  const memberName = (id?: string) =>
+    members.find((m) => m.id === id)?.name.split(/\s+/)[0] ?? "Member";
+
+  const rows = limits.map((lim) => {
+    const label = `${CONTRIBUTION_TYPE_LABELS[lim.type as ContributionType] ?? lim.type}${
+      lim.memberId ? ` ${memberName(lim.memberId)}` : ""
+    }`;
+    const value = valuesUnlocked
+      ? lim.remaining > 0
+        ? `${formatCompactCurrency(lim.remaining)} left`
+        : "Maxed"
+      : `${formatPercent(Math.min(100, (lim.contributed / lim.limit) * 100), 0)} used`;
+    return { label, value };
+  });
+
+  if (compact) {
+    return (
+      <TaxPanel>
+        <TaxPanelHeader title="Contribution room" />
+        <TaxKeyValueRows rows={rows} />
+      </TaxPanel>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <p className="font-semibold leading-none">Contribution room</p>
+      </CardHeader>
+      <CardContent className="p-0">
+        <TaxKeyValueRows rows={rows} />
+      </CardContent>
+    </Card>
+  );
+}
+
+export function TaxOverviewSection({
+  outlook,
+  taxProfile,
+  members,
+  earnerOptions,
+  earnerScope,
+  onEarnerChange,
+  taxView,
+  onTaxViewChange,
+  valuesUnlocked,
+  isMobile,
+}: {
+  outlook: TaxOutlook;
+  taxProfile: TaxProfile;
+  members: Member[];
+  earnerOptions: Array<{ id: string; label: string }>;
+  earnerScope: string;
+  onEarnerChange: (id: string) => void;
+  taxView: TaxViewMode;
+  onTaxViewChange: (view: TaxViewMode) => void;
+  valuesUnlocked: boolean;
+  isMobile: boolean;
+}) {
+  const marginalPct = formatPercent(outlook.marginalRate * 100, 0);
+
+  const outlookBar = (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-sm font-medium">Overall tax outlook</p>
+        <span className="text-sm font-semibold text-emerald-400">
+          {outlook.onTrackPercent}% on track
+        </span>
+      </div>
+      {!isMobile && (
+        <p className="text-xs text-muted-foreground">
+          {outlook.onTrackPercent}% on track · {outlook.openActions} actions open
+        </p>
+      )}
+      <div className="h-2 overflow-hidden rounded-full bg-muted">
+        <div
+          className="h-full rounded-full bg-emerald-500 transition-all"
+          style={{ width: `${Math.min(100, outlook.onTrackPercent)}%` }}
+        />
+      </div>
+    </div>
+  );
+
+  const paidStats = (
+    <div className="grid grid-cols-2 gap-3">
+      <TaxStat
+        label="Paid YTD"
+        value={valuesUnlocked ? formatCompactCurrency(outlook.paidYtd) : "—"}
+      />
+      <TaxStat
+        label="Rest of year"
+        value={valuesUnlocked ? formatCompactCurrency(outlook.paidRestOfYear) : "—"}
+      />
+      {!isMobile && (
+        <>
+          <TaxStat
+            label="Lifetime (fwd)"
+            value={valuesUnlocked ? formatCompactCurrency(outlook.paidLifetimeForward) : "—"}
+          />
+          <TaxStat
+            label="Eff / Marginal"
+            value={
+              valuesUnlocked
+                ? `${formatPercent(outlook.effectiveRate * 100, 1)} / ${marginalPct}`
+                : "—"
+            }
+            tone="info"
+          />
+        </>
+      )}
+    </div>
+  );
+
+  const deferredStats = (
+    <div className="grid grid-cols-2 gap-3">
+      <TaxStat
+        label="Deferred YTD"
+        value={valuesUnlocked ? formatCompactCurrency(outlook.deferredYtd) : "—"}
+        tone="info"
+      />
+      <TaxStat
+        label="Till now"
+        value={valuesUnlocked ? formatCompactCurrency(outlook.deferredCumulative) : "—"}
+      />
+    </div>
+  );
+
+  if (isMobile) {
+    return (
+      <div className="space-y-3">
+        <TaxPanel>
+          <div className="px-3 py-2.5">{outlookBar}</div>
+        </TaxPanel>
+
+        <TaxPanel>
+          <div className="space-y-3 px-3 pt-3">
+            <div className="space-y-1.5">
+              <p className="text-xs text-muted-foreground">Viewing</p>
+              <Select value={earnerScope} onValueChange={onEarnerChange}>
+                <SelectTrigger className="h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {earnerOptions.map((opt) => (
+                    <SelectItem key={opt.id} value={opt.id}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <TaxSegmentedControl
+              options={[
+                { id: "paid" as const, label: "Taxes paid" },
+                { id: "deferred" as const, label: "Tax deferred" },
+              ]}
+              value={taxView}
+              onChange={onTaxViewChange}
+            />
+          </div>
+
+          <div className="px-3 py-2.5">
+            {taxView === "paid" ? paidStats : deferredStats}
+          </div>
+
+          {taxView === "deferred" && (
+            <p className="px-3 pb-2 text-xs text-muted-foreground">
+              Est. at {marginalPct} marginal from pre-tax contributions
+            </p>
+          )}
+
+          <div className="border-t border-border">
+            {taxView === "paid" ? (
+              <TaxPaidBreakdownMobile
+                rows={outlook.paidBreakdown}
+                lifetimeForward={outlook.paidLifetimeForward}
+                valuesUnlocked={valuesUnlocked}
+              />
+            ) : (
+              <div className="px-3 py-3">
+                <TaxDeferredHistogram
+                  data={outlook.deferredByYear}
+                  valuesUnlocked={valuesUnlocked}
+                  compact
+                />
+              </div>
+            )}
+          </div>
+        </TaxPanel>
+
+        <TaxContributionRoom
+          taxProfile={taxProfile}
+          members={members}
+          valuesUnlocked={valuesUnlocked}
+          compact
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <Card className="border-none bg-muted/20 shadow-none">
+        <CardContent className="p-4">{outlookBar}</CardContent>
+      </Card>
+
+      <TaxViewPills value={taxView} onChange={onTaxViewChange} />
+      <TaxEarnerPills
+        options={earnerOptions}
+        value={earnerScope}
+        onChange={onEarnerChange}
+      />
+
+      {taxView === "paid" ? (
+        <div className="space-y-4">
+          {paidStats}
+          <TaxPaidBreakdownDesktop
+            rows={outlook.paidBreakdown}
+            valuesUnlocked={valuesUnlocked}
+          />
+          <TaxPaidStackedChart
+            breakdown={outlook.paidBreakdown}
+            valuesUnlocked={valuesUnlocked}
+          />
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {deferredStats}
+          <p className="text-sm text-muted-foreground">
+            Est. federal tax deferred from pre-tax 401(k), IRA, and HSA at {marginalPct}{" "}
+            marginal.
+          </p>
+          <TaxDeferredHistogram
+            data={outlook.deferredByYear}
+            valuesUnlocked={valuesUnlocked}
+          />
+          <TaxDeferredTable
+            rows={outlook.deferredByYear}
+            valuesUnlocked={valuesUnlocked}
+          />
+        </div>
+      )}
+
+      <Card>
+        <CardHeader className="pb-2">
+          <p className="font-semibold leading-none">Lifetime outlook</p>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <TaxLifetimeLineChart
+            annualTotal={outlook.paidAnnual}
+            valuesUnlocked={valuesUnlocked}
+          />
+          <div className="grid grid-cols-3 gap-3">
+            <TaxStat
+              label="10 yr"
+              value={valuesUnlocked ? formatCompactCurrency(outlook.paidAnnual * 10) : "—"}
+            />
+            <TaxStat
+              label="20 yr"
+              value={valuesUnlocked ? formatCompactCurrency(outlook.paidAnnual * 20) : "—"}
+            />
+            <TaxStat
+              label="Life"
+              value={valuesUnlocked ? formatCompactCurrency(outlook.paidLifetimeForward) : "—"}
+              tone="success"
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      <TaxContributionRoom
+        taxProfile={taxProfile}
+        members={members}
+        valuesUnlocked={valuesUnlocked}
+      />
+    </div>
+  );
+}

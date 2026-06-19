@@ -11,6 +11,8 @@ import {
 import { formatCompactCurrency } from "@/lib/investment-plan/format";
 import { formatCurrencyWhole } from "@/lib/utils";
 import type { TaxPaidBucket } from "@/lib/tax/outlook";
+import { TAX_INSET_X } from "./tax-primitives";
+import { cn } from "@/lib/utils";
 
 function fmt(value: number, unlocked: boolean): string {
   return unlocked ? formatCompactCurrency(value) : "—";
@@ -28,7 +30,7 @@ export function TaxPaidBreakdownMobile({
   return (
     <div>
       {rows.map((row) => (
-        <div key={row.bucket} className="border-b border-border px-3 py-2.5 last:border-b-0">
+        <div key={row.bucket} className={cn("border-b border-border py-2.5 last:border-b-0", TAX_INSET_X)}>
           <p className="text-sm font-medium">{row.bucket}</p>
           <div className="mt-1 flex items-center justify-between text-sm">
             <span className="text-muted-foreground">YTD</span>
@@ -42,7 +44,7 @@ export function TaxPaidBreakdownMobile({
           </div>
         </div>
       ))}
-      <div className="flex items-center justify-between px-3 py-2.5">
+      <div className={cn("flex items-center justify-between py-2.5", TAX_INSET_X)}>
         <span className="text-sm">Lifetime (fwd)</span>
         <span className="text-sm font-semibold tabular-nums">
           {valuesUnlocked ? formatCompactCurrency(lifetimeForward) : "—"}

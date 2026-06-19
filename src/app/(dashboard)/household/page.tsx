@@ -130,7 +130,7 @@ export default function HouseholdManagePage() {
       api.listMembers(household.householdId),
       api.getTaxProfile(year, household.householdId).catch(() => null),
     ]);
-    if (membersRes.valuesUnlocked === false) {
+    if ("valuesUnlocked" in membersRes && membersRes.valuesUnlocked === false) {
       throw new Error(
         "Unlock dollar values to view and edit member income."
       );

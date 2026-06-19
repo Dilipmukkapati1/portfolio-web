@@ -81,11 +81,19 @@ function membersForScope(members: Member[], scope: TaxEarnerScope): Member[] {
   return match.length > 0 ? match : earners;
 }
 
+function memberIncomeSources(member: Member) {
+  return member.incomeSources ?? [];
+}
+
+function memberContributions(member: Member) {
+  return member.contributions ?? [];
+}
+
 function sumWages(members: Member[]): number {
   return members.reduce(
     (total, member) =>
       total +
-      member.incomeSources
+      memberIncomeSources(member)
         .filter((line) => line.type === "wages")
         .reduce((s, line) => s + line.amount, 0),
     0
@@ -97,7 +105,7 @@ function sumInvestmentIncome(members: Member[]): number {
   return members.reduce(
     (total, member) =>
       total +
-      member.incomeSources
+      memberIncomeSources(member)
         .filter((line) => types.has(line.type))
         .reduce((s, line) => s + line.amount, 0),
     0
@@ -117,7 +125,7 @@ function sumPreTaxContributions(members: Member[]): number {
   return members.reduce(
     (total, member) =>
       total +
-      member.contributions
+      memberContributions(member)
         .filter((line) => preTax.has(line.type))
         .reduce((s, line) => s + line.amount, 0),
     0

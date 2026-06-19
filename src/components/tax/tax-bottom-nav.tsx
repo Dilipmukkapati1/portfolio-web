@@ -1,14 +1,9 @@
 "use client";
 
-import { LineChart, PieChart, type LucideIcon } from "lucide-react";
+import { TAX_TABS, type TaxTab } from "./tax-section-tabs";
 import { cn } from "@/lib/utils";
 
-export type TaxTab = "overview" | "plan";
-
-const TABS: Array<{ id: TaxTab; label: string; icon: LucideIcon }> = [
-  { id: "overview", label: "Overview", icon: PieChart },
-  { id: "plan", label: "Plan", icon: LineChart },
-];
+export type { TaxTab };
 
 export function TaxBottomNav({
   active,
@@ -23,8 +18,10 @@ export function TaxBottomNav({
       role="tablist"
       aria-label="Tax sections"
     >
-      <div className="mx-auto grid max-w-[1080px] grid-cols-2">
-        {TABS.map(({ id, label, icon: Icon }) => {
+      <div className={cn("mx-auto grid max-w-[1080px]", `grid-cols-${TAX_TABS.length}`)}
+        style={{ gridTemplateColumns: `repeat(${TAX_TABS.length}, minmax(0, 1fr))` }}
+      >
+        {TAX_TABS.map(({ id, label, icon: Icon }) => {
           const isActive = active === id;
           return (
             <button
@@ -40,7 +37,7 @@ export function TaxBottomNav({
             >
               {isActive && (
                 <span
-                  className="absolute inset-x-4 top-0 h-0.5 rounded-full bg-primary"
+                  className="absolute inset-x-2 top-0 h-0.5 rounded-full bg-primary"
                   aria-hidden
                 />
               )}

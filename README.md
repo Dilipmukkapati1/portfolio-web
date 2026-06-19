@@ -9,7 +9,7 @@ Pick an API target:
 | Command | API | Household |
 | ------- | --- | --------- |
 | `npm run dev` | Azure dev (`ppm-dev-func-*.azurewebsites.net`) | `dev-household` |
-| `npm run dev:local` | Local (`localhost:7071`) | `local-household` |
+| `npm run dev:local` | Local (`localhost:7071`) | `dev-household` (shared Azure Cosmos dev) |
 
 `npm run dev` is the default for UI work — no local Function App required.  
 `npm run dev:local` requires portfolio-api running (`cd ../portfolio-api && npm start`).

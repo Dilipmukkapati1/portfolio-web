@@ -119,6 +119,36 @@ describe("tax outlook", () => {
     );
   });
 
+  it("handles members without incomeSources or contributions", () => {
+    const members = [
+      member({
+        id: "m1",
+        name: "Alex",
+        incomeSources: undefined as unknown as [],
+        contributions: undefined as unknown as [],
+      }),
+    ];
+    const taxProfile: TaxProfile = {
+      id: "hh:2026",
+      householdId: "hh",
+      taxYear: 2026,
+      filingStatus: "single",
+      dependentCount: 0,
+      memberIds: ["m1"],
+      inputs: {},
+      lastEstimate: { federalTax: 10_000, marginalRate: 0.22 },
+    };
+
+    expect(
+      computeTaxOutlook({
+        taxProfile,
+        members,
+        earnerScope: "household",
+        taxYear: 2026,
+      })
+    ).not.toBeNull();
+  });
+
   it("tracks contribution room usage", () => {
     expect(
       computeOnTrackPercent([

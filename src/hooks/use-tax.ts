@@ -7,6 +7,18 @@ import { usePrivacy } from "@/components/PrivacyProvider";
 import { isTaxEstimateStale } from "@/lib/tax-estimate";
 import type { Member, TaxProfile } from "@/lib/household-types";
 
+function normalizeMember(member: Member): Member {
+  return {
+    ...member,
+    incomeSources: member.incomeSources ?? [],
+    contributions: member.contributions ?? [],
+  };
+}
+
+export function normalizeMembers(members: Member[]): Member[] {
+  return members.map(normalizeMember);
+}
+
 export function useTax() {
   const { household, loading: householdLoading } = useHousehold();
   const { isUnlocked, privacyVersion } = usePrivacy();
@@ -37,7 +49,7 @@ export function useTax() {
         profile = recomputed.taxProfile;
       }
 
-      setMembers(membersRes.members ?? []);
+      setMembers(normalizeMembers(membersRes.members ?? []));
       setTaxProfile(profile);
 
       const strat = await api.taxStrategies();

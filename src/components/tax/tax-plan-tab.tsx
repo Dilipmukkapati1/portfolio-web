@@ -10,8 +10,9 @@ import {
   type TaxProfile,
 } from "@/lib/household-types";
 import type { TaxOutlook } from "@/lib/tax/outlook";
+import { cn } from "@/lib/utils";
 import { formatTaxTotal } from "./tax-breakdown";
-import { TaxKeyValueRows, TaxPanel, TaxPanelHeader, TaxStat } from "./tax-primitives";
+import { TaxKeyValueRows, TaxPanel, TaxPanelHeader, TaxStat, TAX_INSET_X } from "./tax-primitives";
 
 function buildChecklist(
   taxProfile: TaxProfile,
@@ -96,13 +97,13 @@ export function TaxPlanSection({
         <TaxPanel>
           <TaxPanelHeader title="Action checklist" trailing={`${openCount} open`} />
           {checklist.length === 0 ? (
-            <p className="px-3 py-4 text-sm text-muted-foreground">
+            <p className={cn(TAX_INSET_X, "py-4 text-sm text-muted-foreground")}>
               No open actions — contribution room looks good.
             </p>
           ) : (
             <ul className="divide-y divide-border">
               {checklist.map((item) => (
-                <li key={item.id} className="px-3 py-2.5 text-sm">
+                <li key={item.id} className={cn(TAX_INSET_X, "py-2.5 text-sm")}>
                   {item.label}
                 </li>
               ))}
@@ -120,7 +121,7 @@ export function TaxPlanSection({
             }
           />
           {recRows.length === 0 ? (
-            <p className="px-3 py-4 text-sm text-muted-foreground">
+            <p className={cn(TAX_INSET_X, "py-4 text-sm text-muted-foreground")}>
               No recommendations yet. Recalculate after updating household income.
             </p>
           ) : (
@@ -138,20 +139,20 @@ export function TaxPlanSection({
             }
           />
           <div className="grid grid-cols-2 divide-x divide-border border-b border-border">
-            <div className="space-y-1 p-3">
+            <div className="space-y-1 p-2">
               <p className="text-xs text-muted-foreground">Current</p>
               <p className="font-semibold tabular-nums">
                 {formatTaxTotal(outlook.totalTaxAnnual, valuesUnlocked)}
               </p>
             </div>
-            <div className="space-y-1 p-3">
+            <div className="space-y-1 p-2">
               <p className="text-xs text-muted-foreground">Optimized</p>
               <p className="font-semibold tabular-nums text-emerald-400">
                 {formatTaxTotal(outlook.optimizedTaxAnnual, valuesUnlocked)}
               </p>
             </div>
           </div>
-          <div className="p-3">
+          <div className="p-2">
             <Button type="button" className="w-full" disabled>
               Compare scenarios
             </Button>

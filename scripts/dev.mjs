@@ -25,7 +25,7 @@ const TARGETS = {
     env: {
       NEXT_PUBLIC_APP_ENV: "local",
       NEXT_PUBLIC_API_URL: "http://localhost:7071/api",
-      NEXT_PUBLIC_DEFAULT_HOUSEHOLD_ID: "local-household",
+      NEXT_PUBLIC_DEFAULT_HOUSEHOLD_ID: "dev-household",
     },
   },
   "azure-dev": {

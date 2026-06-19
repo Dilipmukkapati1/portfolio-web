@@ -2,6 +2,9 @@
 
 import { cn } from "@/lib/utils";
 
+/** Shared horizontal inset for tax panel rows and headers. */
+export const TAX_INSET_X = "px-2";
+
 export function TaxPanel({
   children,
   className,
@@ -24,7 +27,7 @@ export function TaxPanelHeader({
   trailing?: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2.5">
+    <div className={cn("flex items-center justify-between gap-2 border-b border-border py-2.5", TAX_INSET_X)}>
       <p className="text-sm font-medium">{title}</p>
       {trailing && (
         <span className="text-xs text-muted-foreground">{trailing}</span>
@@ -71,7 +74,8 @@ export function TaxKeyValueRows({
         <div
           key={row.label}
           className={cn(
-            "flex items-center justify-between gap-3 px-3 py-2.5 text-sm",
+            "flex items-center justify-between gap-3 py-2.5 text-sm",
+            TAX_INSET_X,
             i < rows.length - 1 && "border-b border-border"
           )}
         >

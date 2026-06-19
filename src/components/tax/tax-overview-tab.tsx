@@ -9,7 +9,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { formatCompactCurrency } from "@/lib/investment-plan/format";
-import { formatPercent } from "@/lib/utils";
+import { formatPercent, cn } from "@/lib/utils";
 import {
   CONTRIBUTION_TYPE_LABELS,
   type ContributionType,
@@ -33,7 +33,7 @@ import {
   TaxViewPills,
   type TaxViewMode,
 } from "./tax-view-controls";
-import { TaxKeyValueRows, TaxPanel, TaxPanelHeader, TaxStat } from "./tax-primitives";
+import { TaxKeyValueRows, TaxPanel, TaxPanelHeader, TaxStat, TAX_INSET_X } from "./tax-primitives";
 
 export function TaxContributionRoom({
   taxProfile,
@@ -180,11 +180,11 @@ export function TaxOverviewSection({
     return (
       <div className="space-y-3">
         <TaxPanel>
-          <div className="px-3 py-2.5">{outlookBar}</div>
+          <div className={cn(TAX_INSET_X, "py-2.5")}>{outlookBar}</div>
         </TaxPanel>
 
         <TaxPanel>
-          <div className="space-y-3 px-3 pt-3">
+          <div className={cn("space-y-3 pt-3", TAX_INSET_X)}>
             <div className="space-y-1.5">
               <p className="text-xs text-muted-foreground">Viewing</p>
               <Select value={earnerScope} onValueChange={onEarnerChange}>
@@ -210,12 +210,12 @@ export function TaxOverviewSection({
             />
           </div>
 
-          <div className="px-3 py-2.5">
+          <div className={cn(TAX_INSET_X, "py-2.5")}>
             {taxView === "paid" ? paidStats : deferredStats}
           </div>
 
           {taxView === "deferred" && (
-            <p className="px-3 pb-2 text-xs text-muted-foreground">
+            <p className={cn(TAX_INSET_X, "pb-2 text-xs text-muted-foreground")}>
               Est. at {marginalPct} marginal from pre-tax contributions
             </p>
           )}
@@ -228,7 +228,7 @@ export function TaxOverviewSection({
                 valuesUnlocked={valuesUnlocked}
               />
             ) : (
-              <div className="px-3 py-3">
+              <div className={cn(TAX_INSET_X, "py-3")}>
                 <TaxDeferredHistogram
                   data={outlook.deferredByYear}
                   valuesUnlocked={valuesUnlocked}

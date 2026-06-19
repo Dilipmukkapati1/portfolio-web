@@ -14,7 +14,7 @@ export function getActiveHouseholdId(): string {
   const stored = localStorage.getItem(ACTIVE_HOUSEHOLD_KEY);
   if (!stored) return envDefault;
 
-  // Browser may still have an old default after switching to the dev API/household.
+  // Shared Azure dev data uses dev-household; migrate stale local-household ids.
   if (stored === "local-household" && envDefault === "dev-household") {
     localStorage.setItem(ACTIVE_HOUSEHOLD_KEY, envDefault);
     return envDefault;

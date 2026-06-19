@@ -9,7 +9,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { formatCompactCurrency } from "@/lib/investment-plan/format";
 import { formatCurrencyWhole } from "@/lib/utils";
 import type { TaxOutlook } from "@/lib/tax/outlook";
 
@@ -30,48 +29,39 @@ export function TaxHeader({
 }) {
   if (isMobile) {
     return (
-      <div className="space-y-2">
-        <div className="flex items-center justify-between gap-2">
-          <h1 className="text-lg font-semibold">Tax</h1>
-          <div className="flex items-center gap-2">
-            <Select value={String(taxYear)} disabled>
-              <SelectTrigger className="h-9 w-[88px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={String(taxYear)}>{taxYear}</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              className="h-9 w-9 shrink-0"
-              onClick={onRecalculate}
-              disabled={estimating}
-              aria-label="Recalculate tax"
-            >
-              {estimating ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <RefreshCw className="h-4 w-4" />
-              )}
-            </Button>
-          </div>
+      <div className="mb-2 flex items-center justify-between gap-2 px-2">
+        <h1 className="text-lg font-semibold">Tax</h1>
+        <div className="flex items-center gap-2">
+          <Select value={String(taxYear)} disabled>
+            <SelectTrigger className="h-9 w-[88px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={String(taxYear)}>{taxYear}</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="h-9 w-9 shrink-0"
+            onClick={onRecalculate}
+            disabled={estimating}
+            aria-label="Recalculate tax"
+          >
+            {estimating ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <RefreshCw className="h-4 w-4" />
+            )}
+          </Button>
         </div>
-        {outlook && (
-          <p className="text-xs text-muted-foreground">
-            Paid YTD{" "}
-            {valuesUnlocked ? formatCompactCurrency(outlook.paidYtd) : "—"} · Def YTD{" "}
-            {valuesUnlocked ? formatCompactCurrency(outlook.deferredYtd) : "—"}
-          </p>
-        )}
       </div>
     );
   }
 
   return (
-    <div className="space-y-4 border-b border-border pb-4">
+    <div className="mb-4 space-y-4 border-b border-border pb-4">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="space-y-1">
           <h1 className="text-2xl font-semibold tracking-tight">Tax</h1>

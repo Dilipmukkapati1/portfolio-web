@@ -329,4 +329,25 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ txnId, category }),
     }),
+  listAdvisorConversations: () =>
+    apiFetch<{ conversations: import("@portfolio/contracts").AdvisorConversationSummary[] }>(
+      "/advisor/conversations"
+    ),
+  getAdvisorConversation: (conversationId: string) =>
+    apiFetch<{ conversation: import("@portfolio/contracts").AdvisorConversation }>(
+      `/advisor/conversations/${encodeURIComponent(conversationId)}`
+    ),
+  deleteAdvisorConversation: (conversationId: string) =>
+    apiFetch<{ deleted: boolean }>(
+      `/advisor/conversations/${encodeURIComponent(conversationId)}`,
+      { method: "DELETE" }
+    ),
+  advisorChat: (body: import("@portfolio/contracts").AdvisorChatRequest) =>
+    apiFetch<import("@portfolio/contracts").AdvisorChatResponse & {
+      privacyMode?: "locked" | "unlocked";
+      valuesUnlocked?: boolean;
+    }>("/advisor/chat", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
 };

@@ -350,4 +350,14 @@ export const api = {
       method: "POST",
       body: JSON.stringify(body),
     }),
+  householdProfileChat: (body: import("@portfolio/contracts").HouseholdProfileChatRequest) =>
+    apiFetch<
+      import("@portfolio/contracts").HouseholdProfileChatResponse & {
+        privacyMode?: "locked" | "unlocked";
+        valuesUnlocked?: boolean;
+      }
+    >("/household/profile-chat", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
 };

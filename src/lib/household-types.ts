@@ -11,6 +11,7 @@ export interface Household {
     currency?: string;
     timezone?: string;
     defaultTaxYear?: number;
+    advisorAutoSave?: boolean;
   };
   createdAt?: string;
   updatedAt?: string;

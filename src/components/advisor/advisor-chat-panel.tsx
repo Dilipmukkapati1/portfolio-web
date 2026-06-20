@@ -62,11 +62,13 @@ function ChatMessages({
   sending,
   hideEmptyHint,
   loading,
+  onEditMessage,
 }: {
   messages: ReturnType<typeof useAdvisorChat>["messages"];
   sending: boolean;
   hideEmptyHint?: boolean;
   loading: boolean;
+  onEditMessage?: (messageId: string, content: string) => void | Promise<void>;
 }) {
   if (loading && messages.length === 0) return null;
   return (
@@ -74,6 +76,7 @@ function ChatMessages({
       messages={messages}
       sending={sending}
       hideEmptyHint={hideEmptyHint}
+      onEditMessage={onEditMessage}
     />
   );
 }
@@ -182,6 +185,7 @@ export function AdvisorChatPanel({
             sending={state.sending}
             hideEmptyHint
             loading={state.loading}
+            onEditMessage={(id, content) => void state.editMessage(id, content)}
           />
         </div>
 
@@ -228,6 +232,7 @@ export function AdvisorChatPanel({
               sending={state.sending}
               hideEmptyHint={embedded}
               loading={state.loading}
+              onEditMessage={(id, content) => void state.editMessage(id, content)}
             />
           </div>
 

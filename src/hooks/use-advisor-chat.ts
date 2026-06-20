@@ -167,6 +167,67 @@ export function useAdvisorChat() {
     ]
   );
 
+  const editMessage = useCallback(
+    async (messageId: string, message: string) => {
+      const trimmed = message.trim();
+      if (!trimmed) return;
+
+      if (!isUnlocked) {
+        showUnlockDialog();
+        return;
+      }
+
+      if (!activeConversation || activeConversation.id === "pending") {
+        return;
+      }
+
+      setSending(true);
+      setError(null);
+
+      const msgIndex = activeConversation.messages.findIndex((m) => m.id === messageId);
+      if (msgIndex === -1) {
+        setSending(false);
+        return;
+      }
+
+      const updatedUser: AdvisorMessage = {
+        ...activeConversation.messages[msgIndex]!,
+        content: trimmed,
+      };
+      setActiveConversation({
+        ...activeConversation,
+        messages: [
+          ...activeConversation.messages.slice(0, msgIndex),
+          updatedUser,
+        ],
+      });
+
+      try {
+        const res = await api.advisorChat({
+          conversationId: activeConversation.id,
+          message: trimmed,
+          editMessageId: messageId,
+        });
+
+        const full = await api.getAdvisorConversation(res.conversationId);
+        setActiveConversation(full.conversation);
+        await loadConversations();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Failed to edit message");
+        void selectConversation(activeConversation.id);
+      } finally {
+        setSending(false);
+      }
+    },
+    [
+      activeConversation,
+      isUnlocked,
+      loadConversations,
+      selectConversation,
+      showUnlockDialog,
+    ]
+  );
+
   const messages: AdvisorMessage[] = activeConversation?.messages ?? [];
 
   const starterPrompts =
@@ -187,6 +248,7 @@ export function useAdvisorChat() {
     startNewChat,
     deleteConversation,
     sendMessage,
+    editMessage,
     showUnlockDialog,
   };
 }

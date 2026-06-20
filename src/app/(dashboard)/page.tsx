@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { Banknote, Gauge, TrendingUp } from "lucide-react";
 import { AllocationView } from "@/components/holdings/allocation-view";

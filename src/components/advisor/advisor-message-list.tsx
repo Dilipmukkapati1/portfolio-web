@@ -271,15 +271,6 @@ export function AdvisorMessageList({
     await onEditMessage(messageId, trimmed);
   }
 
-  if (messages.length === 0 && !sending) {
-    if (hideEmptyHint) return null;
-    return (
-      <p className="text-sm text-muted-foreground">
-        Ask about tax reduction, deferral strategies, or your current page context.
-      </p>
-    );
-  }
-
   const canEdit = Boolean(onEditMessage) && !sending;
 
   const lastEditableUserMessageId = useMemo(() => {
@@ -291,6 +282,15 @@ export function AdvisorMessageList({
     }
     return null;
   }, [messages]);
+
+  if (messages.length === 0 && !sending) {
+    if (hideEmptyHint) return null;
+    return (
+      <p className="text-sm text-muted-foreground">
+        Ask about tax reduction, deferral strategies, or your current page context.
+      </p>
+    );
+  }
 
   return (
     <div className="space-y-4">

@@ -52,6 +52,15 @@ export default function HouseholdManagePage() {
   const [deleting, setDeleting] = useState(false);
   const [createFormKey, setCreateFormKey] = useState(() => suggestHouseholdId());
 
+  const closePanel = useCallback(() => {
+    if (saving) return;
+    setPanel(null);
+    setEditingHousehold(null);
+    setEditMembers([]);
+    setEditTaxProfile(null);
+    setPanelError(null);
+  }, [saving]);
+
   useLayoutEffect(() => {
     setLoading(true);
   }, [privacyVersion]);
@@ -75,11 +84,11 @@ export default function HouseholdManagePage() {
     } finally {
       setLoading(false);
     }
-  }, [privacyVersion]);
+  }, []);
 
   useEffect(() => {
     void loadHouseholds();
-  }, [loadHouseholds]);
+  }, [loadHouseholds, privacyVersion]);
 
   useEffect(() => {
     if (!panel) return;
@@ -95,7 +104,7 @@ export default function HouseholdManagePage() {
       document.body.style.overflow = prev;
       window.removeEventListener("keydown", onKeyDown);
     };
-  }, [panel, saving]);
+  }, [panel, saving, closePanel]);
 
   const allSelected =
     households.length > 0 && selected.size === households.length;
@@ -210,38 +219,29 @@ export default function HouseholdManagePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [privacyVersion]);
 
-  function closePanel() {
-    if (saving) return;
-    setPanel(null);
-    setEditingHousehold(null);
-    setEditMembers([]);
-    setEditTaxProfile(null);
-    setPanelError(null);
-  }
-
   async function saveHouseholdBundle(
     householdId: string,
     values: HouseholdFormValues,
     isCreate: boolean
   ) {
-    const { householdId: _hid, members, filingStatus, defaultTaxYear, ...profile } =
+    const { members, filingStatus, defaultTaxYear, displayName, primaryState, persona } =
       values;
 
     if (isCreate) {
       await api.createHouseholdWithId({
         householdId,
-        displayName: profile.displayName,
-        primaryState: profile.primaryState,
-        state: profile.primaryState,
-        persona: profile.persona,
+        displayName,
+        primaryState,
+        state: primaryState,
+        persona,
         settings: { defaultTaxYear },
       });
     } else {
       await api.updateHouseholdById(householdId, {
-        displayName: profile.displayName,
-        primaryState: profile.primaryState,
-        state: profile.primaryState,
-        persona: profile.persona,
+        displayName,
+        primaryState,
+        state: primaryState,
+        persona,
         settings: { defaultTaxYear },
       });
     }

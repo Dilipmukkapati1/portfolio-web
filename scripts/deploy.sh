@@ -8,10 +8,12 @@ source "$ROOT/scripts/lib/terraform-outputs.sh"
 
 DEPLOY_ENV=""
 SKIP_BUILD=false
+FORCE_BUILD=false
+FORCE_INSTALL=false
 
 usage() {
   cat <<'EOF'
-Usage: scripts/deploy.sh <dev|prod> [--skip-build]
+Usage: scripts/deploy.sh <dev|prod> [--skip-build] [--build] [--install]
 
 Deploy the web app to Azure Static Web Apps (same flow as CI).
 
@@ -19,6 +21,8 @@ Examples:
   npm run deploy:dev
   npm run deploy:prod
   npm run deploy -- dev --skip-build
+  npm run deploy -- dev --build        # force rebuild
+  npm run deploy -- dev --install      # force npm ci before build
 
 Prerequisites:
   az login, terraform outputs (portfolio-infra applied), Node 20+
@@ -43,6 +47,8 @@ parse_args() {
         shift
         ;;
       --skip-build) SKIP_BUILD=true; shift ;;
+      --build) FORCE_BUILD=true; shift ;;
+      --install) FORCE_INSTALL=true; shift ;;
       -h|--help) usage ;;
       *)
         echo "Unknown argument: $1" >&2
@@ -88,8 +94,13 @@ set_next_public_env() {
 }
 
 build_web() {
-  echo "Building portfolio-web..."
-  (cd "$ROOT" && npm ci && npm run build)
+  # shellcheck source=scripts/lib/build-if-needed.sh
+  source "$ROOT/scripts/lib/build-if-needed.sh"
+  local force=0
+  local force_install=0
+  [[ "$FORCE_BUILD" == true ]] && force=1
+  [[ "$FORCE_INSTALL" == true ]] && force_install=1
+  build_web_if_needed "$ROOT" "$force" "$force_install"
 }
 
 fetch_swa_deployment_token() {

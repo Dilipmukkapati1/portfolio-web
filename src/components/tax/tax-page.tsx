@@ -86,7 +86,15 @@ function TaxPageContent() {
 
   if (state.householdLoading || (state.household && state.loading)) {
     return (
-      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        className={cn(
+          isMobile
+            ? "mx-auto flex w-full min-w-0 max-w-[1080px] flex-col overflow-hidden px-0 pt-1 min-h-[calc(100dvh-4rem)] pb-[calc(4.5rem+env(safe-area-inset-bottom))]"
+            : "mx-auto w-full min-w-0 max-w-[1080px] space-y-6 px-2 py-4"
+        )}
+      >
         <TaxPageSkeleton />
       </motion.div>
     );
@@ -283,9 +291,21 @@ function TaxPageContent() {
   );
 }
 
+function TaxPageSkeletonFallback() {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="mx-auto flex w-full min-w-0 max-w-[1080px] flex-col overflow-hidden px-0 pt-1 pb-[calc(4.5rem+env(safe-area-inset-bottom))] max-sm:min-h-[calc(100dvh-4rem)] sm:space-y-6 sm:px-2 sm:py-4 sm:pb-4"
+    >
+      <TaxPageSkeleton />
+    </motion.div>
+  );
+}
+
 export function TaxPage() {
   return (
-    <Suspense fallback={<TaxPageSkeleton />}>
+    <Suspense fallback={<TaxPageSkeletonFallback />}>
       <TaxPageContent />
     </Suspense>
   );

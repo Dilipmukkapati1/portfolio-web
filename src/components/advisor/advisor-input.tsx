@@ -4,6 +4,7 @@ import { useState, type ReactNode } from "react";
 import { Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 
 export function AdvisorInput({
   onSend,
@@ -28,14 +29,20 @@ export function AdvisorInput({
     setValue("");
   }
 
+  const stackedActions = Boolean(actionAboveSend);
+
   return (
-    <div className="flex items-end gap-2">
+    <div className={cn("flex gap-2", stackedActions ? "items-stretch" : "items-end")}>
       <Textarea
-        className="min-w-0 flex-1"
+        className={cn(
+          "min-w-0 flex-1",
+          stackedActions &&
+            "h-[5.25rem] min-h-[5.25rem] resize-none py-2.5 leading-snug focus-visible:ring-offset-0"
+        )}
         value={value}
         onChange={(e) => setValue(e.target.value)}
         placeholder={placeholder}
-        rows={rows}
+        rows={stackedActions ? 2 : rows}
         disabled={disabled}
         onKeyDown={(e) => {
           if (e.key === "Enter" && !e.shiftKey) {
@@ -44,8 +51,23 @@ export function AdvisorInput({
           }
         }}
       />
-      <div className="flex shrink-0 flex-col gap-1">
-        {actionAboveSend}
+      {stackedActions ? (
+        <div className="flex w-10 shrink-0 flex-col gap-1">
+          <div className="flex min-h-0 flex-1 [&_button]:h-full [&_button]:w-full">
+            {actionAboveSend}
+          </div>
+          <Button
+            type="button"
+            size="icon"
+            className="h-auto min-h-0 w-full flex-1"
+            disabled={disabled || !value.trim()}
+            onClick={handleSend}
+            aria-label="Send message"
+          >
+            <Send className="h-4 w-4" />
+          </Button>
+        </div>
+      ) : (
         <Button
           type="button"
           size="icon"
@@ -55,7 +77,7 @@ export function AdvisorInput({
         >
           <Send className="h-4 w-4" />
         </Button>
-      </div>
+      )}
     </div>
   );
 }

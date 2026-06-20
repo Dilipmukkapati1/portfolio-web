@@ -125,6 +125,7 @@ export function AdvisorChatPanel({
       type="button"
       variant="outline"
       size="icon"
+      className="h-full w-full"
       onClick={() => setListOpen(true)}
       aria-label="Chats"
     >
@@ -153,7 +154,7 @@ export function AdvisorChatPanel({
     </>
   );
 
-  const insetX = compact ? "px-0" : "px-3";
+  const insetX = compact ? "px-2" : "px-3";
   const panelShell = cn(
     "flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-card",
     !flush && "rounded-lg border border-border"
@@ -184,7 +185,7 @@ export function AdvisorChatPanel({
           />
         </div>
 
-        <div className={cn("shrink-0 border-t border-border px-0 py-2")}>
+        <div className={cn("shrink-0 border-t border-border px-2 py-2")}>
           {inputFooter}
         </div>
       </div>

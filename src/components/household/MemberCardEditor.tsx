@@ -25,6 +25,31 @@ type MemberCardEditorProps = {
   onRemove: () => void;
 };
 
+function wagesAmount(member: MemberDraft): number {
+  return (
+    member.incomeSources.find((i) => i.type === "wages")?.amount ?? 0
+  );
+}
+
+function bonusAmount(member: MemberDraft): number {
+  const line = member.incomeSources.find((i) => i.type === "bonus");
+  if (!line) return 0;
+  if (line.amountMode === "percent_of_wages" && line.percent != null) {
+    return Math.round((wagesAmount(member) * line.percent) / 100);
+  }
+  return line.amount;
+}
+
+function previewEmployerMatch(member: MemberDraft, line: ContributionLineItem): number {
+  const mode = line.amountMode ?? "fixed";
+  if (mode === "fixed") return line.amount;
+  const base =
+    mode === "percent_of_wages_and_bonus"
+      ? wagesAmount(member) + bonusAmount(member)
+      : wagesAmount(member);
+  return Math.round((base * (line.percent ?? 0)) / 100);
+}
+
 export function MemberCardEditor({
   member,
   index,
@@ -32,6 +57,7 @@ export function MemberCardEditor({
   onRemove,
 }: MemberCardEditorProps) {
   const [open, setOpen] = useState(index === 0);
+  const isDependent = member.relationship === "dependent";
 
   const usedIncomeTypes = new Set(member.incomeSources.map((i) => i.type));
   const usedContributionTypes = new Set(
@@ -54,17 +80,19 @@ export function MemberCardEditor({
   }
 
   function addIncome(type: IncomeSourceType) {
-    updateIncome([
-      ...member.incomeSources,
-      { id: newLocalId(), type, amount: 0 },
-    ]);
+    const base: IncomeLineItem = { id: newLocalId(), type, amount: 0 };
+    if (type === "bonus") {
+      base.amountMode = "fixed";
+    }
+    updateIncome([...member.incomeSources, base]);
   }
 
   function addContribution(type: ContributionType) {
-    updateContributions([
-      ...member.contributions,
-      { id: newLocalId(), type, amount: 0 },
-    ]);
+    const base: ContributionLineItem = { id: newLocalId(), type, amount: 0 };
+    if (type === "employer_match") {
+      base.amountMode = "fixed";
+    }
+    updateContributions([...member.contributions, base]);
   }
 
   const summary =
@@ -157,6 +185,110 @@ export function MemberCardEditor({
                 const label =
                   INCOME_SOURCE_OPTIONS.find((o) => o.value === line.type)
                     ?.label ?? line.type;
+
+                if (line.type === "bonus") {
+                  const mode = line.amountMode ?? "fixed";
+                  const preview =
+                    mode === "percent_of_wages"
+                      ? bonusAmount(member)
+                      : line.amount;
+                  return (
+                    <div
+                      key={line.id}
+                      className="rounded-md border border-border/60 p-3 space-y-2"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-sm text-muted-foreground">
+                          {label}
+                        </span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() =>
+                            updateIncome(
+                              member.incomeSources.filter(
+                                (i) => i.id !== line.id
+                              )
+                            )
+                          }
+                        >
+                          Remove
+                        </Button>
+                      </div>
+                      <select
+                        className="w-full rounded-md border border-border bg-background px-3 py-2 min-h-11 text-sm"
+                        value={mode}
+                        onChange={(e) =>
+                          updateIncome(
+                            member.incomeSources.map((i) =>
+                              i.id === line.id
+                                ? {
+                                    ...i,
+                                    amountMode: e.target
+                                      .value as IncomeLineItem["amountMode"],
+                                  }
+                                : i
+                            )
+                          )
+                        }
+                      >
+                        <option value="fixed">Fixed $ amount</option>
+                        <option value="percent_of_wages">
+                          % of base salary
+                        </option>
+                      </select>
+                      {mode === "percent_of_wages" ? (
+                        <label className="block text-sm">
+                          Percent
+                          <input
+                            type="number"
+                            min={0}
+                            max={100}
+                            className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 min-h-11"
+                            value={line.percent ?? ""}
+                            onChange={(e) =>
+                              updateIncome(
+                                member.incomeSources.map((i) =>
+                                  i.id === line.id
+                                    ? {
+                                        ...i,
+                                        percent:
+                                          parseFloat(e.target.value) || 0,
+                                      }
+                                    : i
+                                )
+                              )
+                            }
+                          />
+                          <span className="text-xs text-muted-foreground">
+                            Preview: ${preview.toLocaleString()}/yr
+                          </span>
+                        </label>
+                      ) : (
+                        <DynamicAmountRow
+                          typeLabel="Annual bonus"
+                          amount={line.amount}
+                          onAmountChange={(amount) =>
+                            updateIncome(
+                              member.incomeSources.map((i) =>
+                                i.id === line.id ? { ...i, amount } : i
+                              )
+                            )
+                          }
+                          onRemove={() =>
+                            updateIncome(
+                              member.incomeSources.filter(
+                                (i) => i.id !== line.id
+                              )
+                            )
+                          }
+                        />
+                      )}
+                    </div>
+                  );
+                }
+
                 return (
                   <DynamicAmountRow
                     key={line.id}
@@ -202,62 +334,173 @@ export function MemberCardEditor({
           )}
         </div>
 
-        <div>
-          <p className="text-sm font-medium mb-2">Contributions</p>
-          {member.contributions.length === 0 ? (
-            <p className="text-xs text-muted-foreground mb-2">
-              No contributions yet. Add 401(k), HSA, IRA, and more.
-            </p>
-          ) : (
-            <div className="space-y-2 mb-2">
-              {member.contributions.map((line) => {
-                const label =
-                  CONTRIBUTION_TYPE_OPTIONS.find((o) => o.value === line.type)
-                    ?.label ?? line.type;
-                return (
-                  <DynamicAmountRow
-                    key={line.id}
-                    typeLabel={label}
-                    amount={line.amount}
-                    onAmountChange={(amount) =>
-                      updateContributions(
-                        member.contributions.map((c) =>
-                          c.id === line.id ? { ...c, amount } : c
-                        )
-                      )
-                    }
-                    onRemove={() =>
-                      updateContributions(
-                        member.contributions.filter((c) => c.id !== line.id)
-                      )
-                    }
-                  />
-                );
-              })}
-            </div>
-          )}
-          {availableContributions.length > 0 && (
-            <label className="block text-sm">
-              <span className="sr-only">Add contribution</span>
-              <select
-                className="w-full rounded-md border border-dashed border-border bg-background px-3 py-2 min-h-11 text-muted-foreground"
-                value=""
-                onChange={(e) => {
-                  if (e.target.value) {
-                    addContribution(e.target.value as ContributionType);
+        {!isDependent && (
+          <div>
+            <p className="text-sm font-medium mb-2">Contributions</p>
+            {member.contributions.length === 0 ? (
+              <p className="text-xs text-muted-foreground mb-2">
+                No contributions yet. Add 401(k), HSA, IRA, and more.
+              </p>
+            ) : (
+              <div className="space-y-2 mb-2">
+                {member.contributions.map((line) => {
+                  const label =
+                    CONTRIBUTION_TYPE_OPTIONS.find((o) => o.value === line.type)
+                      ?.label ?? line.type;
+
+                  if (line.type === "employer_match") {
+                    const mode = line.amountMode ?? "fixed";
+                    const preview = previewEmployerMatch(member, line);
+                    return (
+                      <div
+                        key={line.id}
+                        className="rounded-md border border-border/60 p-3 space-y-2"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-sm text-muted-foreground">
+                            {label}
+                          </span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() =>
+                              updateContributions(
+                                member.contributions.filter(
+                                  (c) => c.id !== line.id
+                                )
+                              )
+                            }
+                          >
+                            Remove
+                          </Button>
+                        </div>
+                        <select
+                          className="w-full rounded-md border border-border bg-background px-3 py-2 min-h-11 text-sm"
+                          value={mode}
+                          onChange={(e) =>
+                            updateContributions(
+                              member.contributions.map((c) =>
+                                c.id === line.id
+                                  ? {
+                                      ...c,
+                                      amountMode: e.target
+                                        .value as ContributionLineItem["amountMode"],
+                                    }
+                                  : c
+                              )
+                            )
+                          }
+                        >
+                          <option value="fixed">Fixed $ amount</option>
+                          <option value="percent_of_wages">
+                            % of base salary
+                          </option>
+                          <option value="percent_of_wages_and_bonus">
+                            % of base + bonus
+                          </option>
+                        </select>
+                        {mode === "fixed" ? (
+                          <DynamicAmountRow
+                            typeLabel="Annual match"
+                            amount={line.amount}
+                            onAmountChange={(amount) =>
+                              updateContributions(
+                                member.contributions.map((c) =>
+                                  c.id === line.id ? { ...c, amount } : c
+                                )
+                              )
+                            }
+                            onRemove={() =>
+                              updateContributions(
+                                member.contributions.filter(
+                                  (c) => c.id !== line.id
+                                )
+                              )
+                            }
+                          />
+                        ) : (
+                          <label className="block text-sm">
+                            Percent
+                            <input
+                              type="number"
+                              min={0}
+                              max={100}
+                              className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 min-h-11"
+                              value={line.percent ?? ""}
+                              onChange={(e) =>
+                                updateContributions(
+                                  member.contributions.map((c) =>
+                                    c.id === line.id
+                                      ? {
+                                          ...c,
+                                          percent:
+                                            parseFloat(e.target.value) || 0,
+                                          amount: previewEmployerMatch(member, {
+                                            ...c,
+                                            percent:
+                                              parseFloat(e.target.value) || 0,
+                                          }),
+                                        }
+                                      : c
+                                  )
+                                )
+                              }
+                            />
+                            <span className="text-xs text-muted-foreground">
+                              Preview: ${preview.toLocaleString()}/yr
+                            </span>
+                          </label>
+                        )}
+                      </div>
+                    );
                   }
-                }}
-              >
-                <option value="">+ Add contribution</option>
-                {availableContributions.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
-        </div>
+
+                  return (
+                    <DynamicAmountRow
+                      key={line.id}
+                      typeLabel={label}
+                      amount={line.amount}
+                      onAmountChange={(amount) =>
+                        updateContributions(
+                          member.contributions.map((c) =>
+                            c.id === line.id ? { ...c, amount } : c
+                          )
+                        )
+                      }
+                      onRemove={() =>
+                        updateContributions(
+                          member.contributions.filter((c) => c.id !== line.id)
+                        )
+                      }
+                    />
+                  );
+                })}
+              </div>
+            )}
+            {availableContributions.length > 0 && (
+              <label className="block text-sm">
+                <span className="sr-only">Add contribution</span>
+                <select
+                  className="w-full rounded-md border border-dashed border-border bg-background px-3 py-2 min-h-11 text-muted-foreground"
+                  value=""
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      addContribution(e.target.value as ContributionType);
+                    }
+                  }}
+                >
+                  <option value="">+ Add contribution</option>
+                  {availableContributions.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+          </div>
+        )}
 
         <Button
           type="button"

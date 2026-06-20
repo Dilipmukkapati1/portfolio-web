@@ -53,8 +53,14 @@ export function TaxContributionRoom({
     members.find((m) => m.id === id)?.name.split(/\s+/)[0] ?? "Member";
 
   const rows = limits.map((lim) => {
-    const label = `${CONTRIBUTION_TYPE_LABELS[lim.type as ContributionType] ?? lim.type}${
-      lim.memberId ? ` ${memberName(lim.memberId)}` : ""
+    const typeLabel =
+      CONTRIBUTION_TYPE_LABELS[lim.type as ContributionType] ?? lim.type;
+    const householdLabel =
+      lim.scope === "household" ? `${typeLabel} (household)` : typeLabel;
+    const label = `${householdLabel}${
+      lim.memberId && lim.scope !== "household"
+        ? ` ${memberName(lim.memberId)}`
+        : ""
     }`;
     const value = valuesUnlocked
       ? lim.remaining > 0
@@ -109,6 +115,24 @@ export function TaxOverviewSection({
   isMobile: boolean;
 }) {
   const marginalPct = formatPercent(outlook.marginalRate * 100, 0);
+  const actualTaxPct =
+    outlook.totalIncome > 0
+      ? formatPercent(outlook.actualTaxRate * 100, 1)
+      : "—";
+
+  const bracketStats = (
+    <div className="grid grid-cols-2 gap-3">
+      <TaxStat
+        label="Top bracket"
+        value={valuesUnlocked ? marginalPct : "—"}
+        tone="info"
+      />
+      <TaxStat
+        label="Tax on income"
+        value={valuesUnlocked ? actualTaxPct : "—"}
+      />
+    </div>
+  );
 
   const outlookBar = (
     <div className="space-y-2">
@@ -143,21 +167,10 @@ export function TaxOverviewSection({
         value={valuesUnlocked ? formatCompactCurrency(outlook.paidRestOfYear) : "—"}
       />
       {!isMobile && (
-        <>
-          <TaxStat
-            label="Lifetime (fwd)"
-            value={valuesUnlocked ? formatCompactCurrency(outlook.paidLifetimeForward) : "—"}
-          />
-          <TaxStat
-            label="Eff / Marginal"
-            value={
-              valuesUnlocked
-                ? `${formatPercent(outlook.effectiveRate * 100, 1)} / ${marginalPct}`
-                : "—"
-            }
-            tone="info"
-          />
-        </>
+        <TaxStat
+          label="Lifetime (fwd)"
+          value={valuesUnlocked ? formatCompactCurrency(outlook.paidLifetimeForward) : "—"}
+        />
       )}
     </div>
   );
@@ -181,6 +194,10 @@ export function TaxOverviewSection({
       <div className="space-y-3">
         <TaxPanel>
           <div className={cn(TAX_INSET_X, "py-2.5")}>{outlookBar}</div>
+        </TaxPanel>
+
+        <TaxPanel>
+          <div className={cn(TAX_INSET_X, "py-2.5")}>{bracketStats}</div>
         </TaxPanel>
 
         <TaxPanel>
@@ -252,7 +269,10 @@ export function TaxOverviewSection({
   return (
     <div className="space-y-4">
       <Card className="border-none bg-muted/20 shadow-none">
-        <CardContent className="p-4">{outlookBar}</CardContent>
+        <CardContent className="space-y-4 p-4">
+          {outlookBar}
+          {bracketStats}
+        </CardContent>
       </Card>
 
       <TaxViewPills value={taxView} onChange={onTaxViewChange} />

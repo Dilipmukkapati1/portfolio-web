@@ -69,6 +69,9 @@ describe("tax outlook", () => {
 
     expect(outlook).not.toBeNull();
     expect(outlook!.paidAnnual).toBeGreaterThan(60_000);
+    expect(outlook!.totalIncome).toBe(395_000);
+    expect(outlook!.actualTaxRate).toBeCloseTo(outlook!.paidAnnual / 395_000, 4);
+    expect(outlook!.marginalRate).toBe(0.24);
     expect(outlook!.deferredYtd).toBeGreaterThan(0);
     expect(outlook!.onTrackPercent).toBeGreaterThan(0);
   });

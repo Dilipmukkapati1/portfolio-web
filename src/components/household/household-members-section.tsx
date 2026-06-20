@@ -130,6 +130,7 @@ export function HouseholdMembersSection({
         primaryState: values.primaryState,
         state: values.primaryState,
         persona: values.persona,
+        liquidCashSnapshot: values.liquidCashSnapshot,
         settings: { defaultTaxYear: values.defaultTaxYear },
       });
       await api.saveMembers(

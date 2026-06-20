@@ -7,6 +7,7 @@ export interface Household {
   filingStatus?: string;
   dependents?: number;
   persona: string;
+  liquidCashSnapshot?: number;
   settings?: {
     currency?: string;
     timezone?: string;
@@ -25,12 +26,21 @@ export interface Household {
 
 export type IncomeSourceType =
   | "wages"
+  | "bonus"
+  | "cash_income"
   | "self_employment"
   | "interest"
   | "dividends"
   | "capital_gains_short"
   | "capital_gains_long"
   | "other";
+
+export type IncomeAmountMode = "fixed" | "percent_of_wages";
+
+export type ContributionAmountMode =
+  | "fixed"
+  | "percent_of_wages"
+  | "percent_of_wages_and_bonus";
 
 export type ContributionType =
   | "401k"
@@ -53,6 +63,8 @@ export interface IncomeLineItem {
   type: IncomeSourceType;
   amount: number;
   label?: string;
+  amountMode?: IncomeAmountMode;
+  percent?: number;
 }
 
 export interface ContributionLineItem {
@@ -60,6 +72,8 @@ export interface ContributionLineItem {
   type: ContributionType;
   amount: number;
   label?: string;
+  amountMode?: ContributionAmountMode;
+  percent?: number;
 }
 
 export interface Member {
@@ -95,6 +109,7 @@ export interface TaxProfile {
   contributionLimits?: Array<{
     type: ContributionType;
     memberId?: string;
+    scope?: "per_member" | "household";
     limit: number;
     contributed: number;
     remaining: number;
@@ -132,6 +147,8 @@ export const RELATIONSHIP_LABELS: Record<MemberRelationship, string> = {
 
 export const INCOME_TYPE_LABELS: Record<IncomeSourceType, string> = {
   wages: "W-2 wages",
+  bonus: "Bonus",
+  cash_income: "Cash income",
   self_employment: "Self-employment",
   interest: "Interest",
   dividends: "Dividends",

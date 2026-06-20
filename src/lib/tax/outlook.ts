@@ -1,3 +1,4 @@
+import { resolveMemberIncomeAmounts } from "@portfolio/contracts";
 import type { Member, TaxProfile } from "@/lib/household-types";
 
 export type TaxEarnerScope = "household" | string;
@@ -30,6 +31,8 @@ export interface TaxOutlook {
   paidBreakdown: TaxPaidBucket[];
   effectiveRate: number;
   marginalRate: number;
+  totalIncome: number;
+  actualTaxRate: number;
   totalTaxAnnual: number;
   onTrackPercent: number;
   openActions: number;
@@ -87,6 +90,21 @@ function memberIncomeSources(member: Member) {
 
 function memberContributions(member: Member) {
   return member.contributions ?? [];
+}
+
+function sumTotalIncome(members: Member[]): number {
+  let total = 0;
+  for (const member of members) {
+    const resolved = resolveMemberIncomeAmounts(member);
+    total += resolved.wages + resolved.bonus + resolved.cashIncome;
+    for (const line of memberIncomeSources(member)) {
+      if (line.type === "wages" || line.type === "bonus" || line.type === "cash_income") {
+        continue;
+      }
+      total += line.amount;
+    }
+  }
+  return total;
 }
 
 function sumWages(members: Member[]): number {
@@ -282,6 +300,9 @@ export function computeTaxOutlook(params: {
   const paidRestOfYear = paidBreakdown.reduce((s, b) => s + b.restOfYear, 0);
   const paidAnnual = paidYtd + paidRestOfYear;
 
+  const totalIncome = sumTotalIncome(scopedMembers);
+  const actualTaxRate = totalIncome > 0 ? paidAnnual / totalIncome : 0;
+
   const marginalRate = Number(taxProfile.lastEstimate.marginalRate ?? 0.24);
   const contributions = sumPreTaxContributions(scopedMembers);
   const deferredAnnual = contributions * marginalRate;
@@ -312,6 +333,8 @@ export function computeTaxOutlook(params: {
     paidBreakdown,
     effectiveRate: Number(taxProfile.lastEstimate.effectiveRate ?? 0),
     marginalRate,
+    totalIncome,
+    actualTaxRate,
     totalTaxAnnual: paidAnnual,
     onTrackPercent: computeOnTrackPercent(taxProfile.contributionLimits),
     openActions: countOpenActions(taxProfile.contributionLimits, strategies),

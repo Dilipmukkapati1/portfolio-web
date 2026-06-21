@@ -17,6 +17,7 @@ import {
   type HouseholdFormValues,
 } from "@/components/HouseholdForm";
 import { FormPanelSkeleton } from "@/components/shared/page-skeletons";
+import { HouseholdIncomeSummary } from "@/components/household/household-income-summary";
 import { cn } from "@/lib/utils";
 import {
   resolvedMemberContributionTotal,
@@ -161,6 +162,15 @@ export function HouseholdMembersSection({
   const filingLabel =
     FILING_LABELS[household?.filingStatus ?? ""] ?? household?.filingStatus ?? "—";
 
+  const incomeSummary = (
+    <HouseholdIncomeSummary
+      members={members}
+      isUnlocked={isUnlocked}
+      onUnlock={showUnlockDialog}
+      loading={loading}
+    />
+  );
+
   const memberList = (
     <>
       {error && (
@@ -203,15 +213,6 @@ export function HouseholdMembersSection({
             })}
         </ul>
       )}
-      {!isUnlocked && members.length > 0 && (
-        <button
-          type="button"
-          className="text-xs text-primary underline"
-          onClick={showUnlockDialog}
-        >
-          Unlock to see amounts
-        </button>
-      )}
     </>
   );
 
@@ -228,6 +229,7 @@ export function HouseholdMembersSection({
 
   const content = embedded ? (
     <div className="space-y-3">
+      {incomeSummary}
       <div className="flex items-center justify-between gap-2">
         <p className="text-xs text-muted-foreground truncate">
           {household?.displayName ?? "Household"} ·{" "}
@@ -239,15 +241,18 @@ export function HouseholdMembersSection({
     </div>
   ) : (
     <Card>
-      <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3 space-y-0 pb-4">
-        <div>
-          <CardTitle className="text-lg">Members</CardTitle>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {household?.displayName ?? "Household"} ·{" "}
-            {household?.primaryState ?? household?.state ?? "—"} · {filingLabel}
-          </p>
+      <CardHeader className="space-y-4 pb-4">
+        {incomeSummary}
+        <div className="flex flex-row flex-wrap items-start justify-between gap-3">
+          <div>
+            <CardTitle className="text-lg">Members</CardTitle>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {household?.displayName ?? "Household"} ·{" "}
+              {household?.primaryState ?? household?.state ?? "—"} · {filingLabel}
+            </p>
+          </div>
+          {manageButton}
         </div>
-        {manageButton}
       </CardHeader>
       <CardContent className="space-y-3">{memberList}</CardContent>
     </Card>

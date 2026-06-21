@@ -44,7 +44,7 @@ export function useHouseholdProfileChat(options?: {
         if (res.autoSave?.applied) {
           toast({
             title: "Profile updated",
-            description: res.message.content.replace(/^Updated your household profile:\n?/, ""),
+            description: res.message.content,
           });
           await refreshHousehold();
           await options?.onMembersUpdated?.();

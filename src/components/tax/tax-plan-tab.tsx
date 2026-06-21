@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatCompactCurrency } from "@/lib/investment-plan/format";
+import { formatContributionRoom } from "@/lib/tax/display";
 import {
   CONTRIBUTION_TYPE_LABELS,
   type ContributionType,
@@ -17,19 +18,28 @@ import { TaxKeyValueRows, TaxPanel, TaxPanelHeader, TaxStat, TAX_INSET_X } from 
 function buildChecklist(
   taxProfile: TaxProfile,
   members: Member[],
-  strategies: Array<Record<string, unknown>>
+  strategies: Array<Record<string, unknown>>,
+  valuesUnlocked: boolean
 ): Array<{ id: string; label: string; done: boolean }> {
   const items: Array<{ id: string; label: string; done: boolean }> = [];
   const memberName = (id?: string) =>
     members.find((m) => m.id === id)?.name.split(/\s+/)[0] ?? "Member";
 
   for (const lim of taxProfile.contributionLimits ?? []) {
-    if (lim.remaining <= 0) continue;
+    const isOpen =
+      lim.remaining != null
+        ? lim.remaining > 0
+        : lim.contributionUsedPercent != null
+          ? lim.contributionUsedPercent < 100
+          : lim.limit != null && lim.contributed != null
+            ? lim.contributed < lim.limit
+            : false;
+    if (!isOpen) continue;
     const typeLabel =
       CONTRIBUTION_TYPE_LABELS[lim.type as ContributionType] ?? lim.type;
     items.push({
       id: `limit-${lim.type}-${lim.memberId ?? "hh"}`,
-      label: `${typeLabel}${lim.memberId ? ` ${memberName(lim.memberId)}` : ""} — ${formatCompactCurrency(lim.remaining)} left`,
+      label: `${typeLabel}${lim.memberId ? ` ${memberName(lim.memberId)}` : ""} — ${formatContributionRoom(lim, valuesUnlocked)}`,
       done: false,
     });
   }
@@ -62,12 +72,12 @@ export function TaxPlanSection({
   valuesUnlocked: boolean;
   isMobile: boolean;
 }) {
-  const checklist = buildChecklist(taxProfile, members, strategies);
+  const checklist = buildChecklist(taxProfile, members, strategies, valuesUnlocked);
   const openCount = checklist.length;
   const recRows = strategies.map((s) => ({
     label: String(s.title),
     value:
-      s.estimatedSavings != null
+      valuesUnlocked && s.estimatedSavings != null
         ? `−${formatCompactCurrency(Number(s.estimatedSavings))}/yr`
         : "Review",
   }));
@@ -115,7 +125,7 @@ export function TaxPlanSection({
           <TaxPanelHeader
             title="Recommendations"
             trailing={
-              outlook.optimizedSavings > 0
+              valuesUnlocked && outlook.optimizedSavings > 0
                 ? `−${formatCompactCurrency(outlook.optimizedSavings)}/yr`
                 : undefined
             }
@@ -133,7 +143,7 @@ export function TaxPlanSection({
           <TaxPanelHeader
             title="Scenarios"
             trailing={
-              outlook.optimizedSavings > 0
+              valuesUnlocked && outlook.optimizedSavings > 0
                 ? `−${formatCompactCurrency(outlook.optimizedSavings)}`
                 : undefined
             }

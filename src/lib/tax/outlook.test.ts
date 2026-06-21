@@ -158,6 +158,47 @@ describe("tax outlook", () => {
         { type: "401k", limit: 24_500, contributed: 12_250, remaining: 12_250 },
       ])
     ).toBe(50);
+    expect(
+      computeOnTrackPercent([
+        { type: "401k", contributionUsedPercent: 82 },
+      ])
+    ).toBe(82);
+  });
+
+  it("builds locked outlook from redacted tax mix", () => {
+    const taxProfile: TaxProfile = {
+      id: "hh:2026",
+      householdId: "hh",
+      taxYear: 2026,
+      filingStatus: "married_filing_jointly",
+      dependentCount: 0,
+      memberIds: ["m1"],
+      inputs: {},
+      lastEstimate: {
+        effectiveRate: 0.19,
+        marginalRate: 0.24,
+        totalTaxRate: 0.27,
+        taxMixPercent: {
+          federal: 0.62,
+          socialSecurity: 0.23,
+          medicare: 0.14,
+          niit: 0.01,
+        },
+      },
+    };
+
+    const outlook = computeTaxOutlook({
+      taxProfile,
+      members: [],
+      earnerScope: "household",
+      taxYear: 2026,
+      now: new Date("2026-06-15T12:00:00"),
+    });
+
+    expect(outlook).not.toBeNull();
+    expect(outlook!.paidAnnual).toBeCloseTo(1, 5);
+    expect(outlook!.actualTaxRate).toBe(0.27);
+    expect(outlook!.paidBreakdown[0].ytd).toBeCloseTo(0.62 * outlook!.yearProgress, 4);
   });
 
   it("measures year progress within calendar year", () => {

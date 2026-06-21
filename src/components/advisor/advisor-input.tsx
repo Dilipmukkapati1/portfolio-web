@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -9,6 +9,8 @@ import { cn } from "@/lib/utils";
 export function AdvisorInput({
   onSend,
   disabled,
+  locked,
+  onLockedFocus,
   initialValue = "",
   placeholder = "Ask about tax reduction or deferral…",
   rows = 2,
@@ -16,15 +18,28 @@ export function AdvisorInput({
 }: {
   onSend: (message: string) => void;
   disabled?: boolean;
+  locked?: boolean;
+  onLockedFocus?: () => void;
   initialValue?: string;
   placeholder?: string;
   rows?: number;
   actionAboveSend?: ReactNode;
 }) {
   const [value, setValue] = useState(initialValue);
+  const hasPromptedUnlock = useRef(false);
+
+  useEffect(() => {
+    if (!locked) hasPromptedUnlock.current = false;
+  }, [locked]);
+
+  function promptUnlockIfNeeded() {
+    if (!locked || hasPromptedUnlock.current) return;
+    hasPromptedUnlock.current = true;
+    onLockedFocus?.();
+  }
 
   function handleSend() {
-    if (!value.trim() || disabled) return;
+    if (!value.trim() || disabled || locked) return;
     onSend(value);
     setValue("");
   }
@@ -44,6 +59,9 @@ export function AdvisorInput({
         placeholder={placeholder}
         rows={stackedActions ? 2 : rows}
         disabled={disabled}
+        readOnly={locked}
+        onFocus={promptUnlockIfNeeded}
+        onClick={promptUnlockIfNeeded}
         onKeyDown={(e) => {
           if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault();
@@ -60,7 +78,7 @@ export function AdvisorInput({
             type="button"
             size="icon"
             className="h-auto min-h-0 w-full flex-1"
-            disabled={disabled || !value.trim()}
+            disabled={disabled || locked || !value.trim()}
             onClick={handleSend}
             aria-label="Send message"
           >
@@ -71,7 +89,7 @@ export function AdvisorInput({
         <Button
           type="button"
           size="icon"
-          disabled={disabled || !value.trim()}
+          disabled={disabled || locked || !value.trim()}
           onClick={handleSend}
           aria-label="Send message"
         >

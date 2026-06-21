@@ -149,6 +149,8 @@ export function AdvisorChatPanel({
       <AdvisorInput
         onSend={(msg) => void state.sendMessage(msg)}
         disabled={state.sending}
+        locked={!state.isUnlocked}
+        onLockedFocus={state.showUnlockDialog}
         initialValue={state.messages.length ? "" : state.initialPrompt}
         placeholder={embedded || compact ? "Message…" : undefined}
         rows={embedded || compact ? 1 : 2}
@@ -185,11 +187,15 @@ export function AdvisorChatPanel({
             sending={state.sending}
             hideEmptyHint
             loading={state.loading}
-            onEditMessage={(id, content) => void state.editMessage(id, content)}
+            onEditMessage={
+              state.isUnlocked
+                ? (id, content) => void state.editMessage(id, content)
+                : undefined
+            }
           />
         </div>
 
-        <div className={cn("shrink-0 border-t border-border px-2 py-2")}>
+        <div className={cn("shrink-0 border-t border-border py-2", insetX)}>
           {inputFooter}
         </div>
       </div>
@@ -232,22 +238,13 @@ export function AdvisorChatPanel({
               sending={state.sending}
               hideEmptyHint={embedded}
               loading={state.loading}
-              onEditMessage={(id, content) => void state.editMessage(id, content)}
+              onEditMessage={
+                state.isUnlocked
+                  ? (id, content) => void state.editMessage(id, content)
+                  : undefined
+              }
             />
           </div>
-
-          {!state.isUnlocked && !embedded && (
-            <p className="shrink-0 px-4 pb-2 text-sm text-muted-foreground">
-              Unlock privacy to send messages.{" "}
-              <button
-                type="button"
-                className="text-primary underline"
-                onClick={state.showUnlockDialog}
-              >
-                Unlock
-              </button>
-            </p>
-          )}
 
           <div className="shrink-0 border-t border-border p-3 py-2">
             {inputFooter}

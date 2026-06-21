@@ -110,9 +110,10 @@ export interface TaxProfile {
     type: ContributionType;
     memberId?: string;
     scope?: "per_member" | "household";
-    limit: number;
-    contributed: number;
-    remaining: number;
+    limit?: number;
+    contributed?: number;
+    remaining?: number;
+    contributionUsedPercent?: number;
   }>;
   lastEstimate?: {
     adjustedGrossIncome?: number;
@@ -120,6 +121,13 @@ export interface TaxProfile {
     federalTax?: number;
     effectiveRate?: number;
     marginalRate?: number;
+    totalTaxRate?: number;
+    taxMixPercent?: {
+      federal: number;
+      socialSecurity: number;
+      medicare: number;
+      niit: number;
+    };
   };
 }
 

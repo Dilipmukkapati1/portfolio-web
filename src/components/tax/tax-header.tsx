@@ -10,6 +10,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { formatCurrencyWhole } from "@/lib/utils";
+import { formatTaxRate } from "@/lib/tax/display";
 import type { TaxOutlook } from "@/lib/tax/outlook";
 
 export function TaxHeader({
@@ -69,10 +70,15 @@ export function TaxHeader({
             {taxYear} total tax (est.)
           </p>
           <p className="text-lg font-semibold tabular-nums">
-            {outlook && valuesUnlocked
-              ? formatCurrencyWhole(outlook.totalTaxAnnual)
+            {outlook
+              ? valuesUnlocked
+                ? formatCurrencyWhole(outlook.totalTaxAnnual)
+                : formatTaxRate(outlook.actualTaxRate, 1)
               : "—"}
           </p>
+          {outlook && !valuesUnlocked && (
+            <p className="text-xs text-muted-foreground">of income · percent view</p>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <Select value={String(taxYear)} disabled>

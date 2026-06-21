@@ -9,6 +9,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { formatCompactCurrency } from "@/lib/investment-plan/format";
+import { formatContributionRoom, formatTaxRate, formatTaxShare } from "@/lib/tax/display";
 import { formatPercent, cn } from "@/lib/utils";
 import {
   CONTRIBUTION_TYPE_LABELS,
@@ -62,11 +63,7 @@ export function TaxContributionRoom({
         ? ` ${memberName(lim.memberId)}`
         : ""
     }`;
-    const value = valuesUnlocked
-      ? lim.remaining > 0
-        ? `${formatCompactCurrency(lim.remaining)} left`
-        : "Maxed"
-      : `${formatPercent(Math.min(100, (lim.contributed / lim.limit) * 100), 0)} used`;
+    const value = formatContributionRoom(lim, valuesUnlocked);
     return { label, value };
   });
 
@@ -114,23 +111,13 @@ export function TaxOverviewSection({
   valuesUnlocked: boolean;
   isMobile: boolean;
 }) {
-  const marginalPct = formatPercent(outlook.marginalRate * 100, 0);
-  const actualTaxPct =
-    outlook.totalIncome > 0
-      ? formatPercent(outlook.actualTaxRate * 100, 1)
-      : "—";
+  const marginalPct = formatTaxRate(outlook.marginalRate, 0);
+  const actualTaxPct = formatTaxRate(outlook.actualTaxRate, 1);
 
   const bracketStats = (
     <div className="grid grid-cols-2 gap-3">
-      <TaxStat
-        label="Top bracket"
-        value={valuesUnlocked ? marginalPct : "—"}
-        tone="info"
-      />
-      <TaxStat
-        label="Tax on income"
-        value={valuesUnlocked ? actualTaxPct : "—"}
-      />
+      <TaxStat label="Top bracket" value={marginalPct} tone="info" />
+      <TaxStat label="Tax on income" value={actualTaxPct} />
     </div>
   );
 
@@ -160,16 +147,32 @@ export function TaxOverviewSection({
     <div className="grid grid-cols-2 gap-3">
       <TaxStat
         label="Paid YTD"
-        value={valuesUnlocked ? formatCompactCurrency(outlook.paidYtd) : "—"}
+        value={formatTaxShare(
+          outlook.paidYtd,
+          outlook.paidAnnual,
+          valuesUnlocked,
+          1,
+          outlook.yearProgress
+        )}
       />
       <TaxStat
         label="Rest of year"
-        value={valuesUnlocked ? formatCompactCurrency(outlook.paidRestOfYear) : "—"}
+        value={formatTaxShare(
+          outlook.paidRestOfYear,
+          outlook.paidAnnual,
+          valuesUnlocked,
+          1,
+          Math.max(0, 1 - outlook.yearProgress)
+        )}
       />
       {!isMobile && (
         <TaxStat
           label="Lifetime (fwd)"
-          value={valuesUnlocked ? formatCompactCurrency(outlook.paidLifetimeForward) : "—"}
+          value={
+            valuesUnlocked
+              ? formatCompactCurrency(outlook.paidLifetimeForward)
+              : formatTaxShare(outlook.paidLifetimeForward, outlook.paidAnnual * 25, false)
+          }
         />
       )}
     </div>
@@ -179,12 +182,12 @@ export function TaxOverviewSection({
     <div className="grid grid-cols-2 gap-3">
       <TaxStat
         label="Deferred YTD"
-        value={valuesUnlocked ? formatCompactCurrency(outlook.deferredYtd) : "—"}
+        value={formatTaxShare(outlook.deferredYtd, outlook.paidAnnual, valuesUnlocked)}
         tone="info"
       />
       <TaxStat
         label="Till now"
-        value={valuesUnlocked ? formatCompactCurrency(outlook.deferredCumulative) : "—"}
+        value={formatTaxShare(outlook.deferredCumulative, outlook.paidAnnual, valuesUnlocked)}
       />
     </div>
   );
@@ -243,6 +246,7 @@ export function TaxOverviewSection({
                 rows={outlook.paidBreakdown}
                 lifetimeForward={outlook.paidLifetimeForward}
                 valuesUnlocked={valuesUnlocked}
+                paidAnnual={outlook.paidAnnual}
               />
             ) : (
               <div className={cn(TAX_INSET_X, "py-3")}>
@@ -288,6 +292,7 @@ export function TaxOverviewSection({
           <TaxPaidBreakdownDesktop
             rows={outlook.paidBreakdown}
             valuesUnlocked={valuesUnlocked}
+            paidAnnual={outlook.paidAnnual}
           />
           <TaxPaidStackedChart
             breakdown={outlook.paidBreakdown}
@@ -308,6 +313,7 @@ export function TaxOverviewSection({
           <TaxDeferredTable
             rows={outlook.deferredByYear}
             valuesUnlocked={valuesUnlocked}
+            paidAnnual={outlook.paidAnnual}
           />
         </div>
       )}
@@ -324,15 +330,27 @@ export function TaxOverviewSection({
           <div className="grid grid-cols-3 gap-3">
             <TaxStat
               label="10 yr"
-              value={valuesUnlocked ? formatCompactCurrency(outlook.paidAnnual * 10) : "—"}
+              value={
+                valuesUnlocked
+                  ? formatCompactCurrency(outlook.paidAnnual * 10)
+                  : formatTaxShare(outlook.paidAnnual * 10, outlook.paidAnnual * 25, false)
+              }
             />
             <TaxStat
               label="20 yr"
-              value={valuesUnlocked ? formatCompactCurrency(outlook.paidAnnual * 20) : "—"}
+              value={
+                valuesUnlocked
+                  ? formatCompactCurrency(outlook.paidAnnual * 20)
+                  : formatTaxShare(outlook.paidAnnual * 20, outlook.paidAnnual * 25, false)
+              }
             />
             <TaxStat
               label="Life"
-              value={valuesUnlocked ? formatCompactCurrency(outlook.paidLifetimeForward) : "—"}
+              value={
+                valuesUnlocked
+                  ? formatCompactCurrency(outlook.paidLifetimeForward)
+                  : formatTaxShare(outlook.paidLifetimeForward, outlook.paidAnnual * 25, false)
+              }
               tone="success"
             />
           </div>

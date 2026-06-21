@@ -38,10 +38,10 @@ export function TaxAdvisorSection({
           s.estimatedSavings != null ? Number(s.estimatedSavings) : undefined,
       })),
       contributionRoom: (taxProfile?.contributionLimits ?? [])
-        .filter((l) => l.remaining > 0)
+        .filter((l) => l.remaining != null && l.remaining > 0)
         .map((l) => ({
           label: l.type,
-          remaining: l.remaining,
+          remaining: l.remaining!,
         })),
     });
     persistAdvisorPageContext(

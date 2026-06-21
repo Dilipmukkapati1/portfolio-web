@@ -18,6 +18,10 @@ import {
 } from "@/components/HouseholdForm";
 import { FormPanelSkeleton } from "@/components/shared/page-skeletons";
 import { cn } from "@/lib/utils";
+import {
+  resolvedMemberContributionTotal,
+  resolvedMemberIncomeTotal,
+} from "@/lib/household-income";
 
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("en-US", {
@@ -28,14 +32,8 @@ function formatCurrency(amount: number): string {
 }
 
 function memberSummary(member: Member, isUnlocked: boolean): string | null {
-  const incomeTotal = (member.incomeSources ?? []).reduce(
-    (sum, line) => sum + line.amount,
-    0
-  );
-  const contribTotal = (member.contributions ?? []).reduce(
-    (sum, line) => sum + line.amount,
-    0
-  );
+  const incomeTotal = resolvedMemberIncomeTotal(member);
+  const contribTotal = resolvedMemberContributionTotal(member);
   const parts: string[] = [];
   if ((member.incomeSources ?? []).length > 0) {
     parts.push(isUnlocked ? `${formatCurrency(incomeTotal)} income` : "Income set");

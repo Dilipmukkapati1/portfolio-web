@@ -1,5 +1,9 @@
-import { resolveMemberIncomeAmounts } from "@portfolio/contracts";
 import type { Member, TaxProfile } from "@/lib/household-types";
+import {
+  resolvedBonusAmount,
+  resolvedMemberIncomeTotal,
+  resolvedWagesAmount,
+} from "@/lib/household-income";
 
 export type TaxEarnerScope = "household" | string;
 
@@ -93,27 +97,16 @@ function memberContributions(member: Member) {
 }
 
 function sumTotalIncome(members: Member[]): number {
-  let total = 0;
-  for (const member of members) {
-    const resolved = resolveMemberIncomeAmounts(member);
-    total += resolved.wages + resolved.bonus + resolved.cashIncome;
-    for (const line of memberIncomeSources(member)) {
-      if (line.type === "wages" || line.type === "bonus" || line.type === "cash_income") {
-        continue;
-      }
-      total += line.amount;
-    }
-  }
-  return total;
+  return members.reduce(
+    (total, member) => total + resolvedMemberIncomeTotal(member),
+    0
+  );
 }
 
 function sumWages(members: Member[]): number {
   return members.reduce(
     (total, member) =>
-      total +
-      memberIncomeSources(member)
-        .filter((line) => line.type === "wages")
-        .reduce((s, line) => s + line.amount, 0),
+      total + resolvedWagesAmount(member) + resolvedBonusAmount(member),
     0
   );
 }
@@ -199,11 +192,19 @@ export function computeOnTrackPercent(
   limits: TaxProfile["contributionLimits"] | undefined
 ): number {
   if (!limits?.length) return 100;
-  const tracked = limits.filter((l) => l.limit > 0);
+  const tracked = limits
+    .map((limit) => {
+      if (limit.contributionUsedPercent != null) {
+        return Math.min(1, limit.contributionUsedPercent / 100);
+      }
+      if (limit.limit != null && limit.limit > 0 && limit.contributed != null) {
+        return Math.min(1, limit.contributed / limit.limit);
+      }
+      return null;
+    })
+    .filter((value): value is number => value != null);
   if (!tracked.length) return 100;
-  const avg =
-    tracked.reduce((s, l) => s + Math.min(1, l.contributed / l.limit), 0) /
-    tracked.length;
+  const avg = tracked.reduce((sum, value) => sum + value, 0) / tracked.length;
   return Math.round(avg * 100);
 }
 
@@ -211,7 +212,17 @@ export function countOpenActions(
   limits: TaxProfile["contributionLimits"] | undefined,
   strategies: Array<Record<string, unknown>>
 ): number {
-  let open = limits?.filter((l) => l.remaining > 0).length ?? 0;
+  let open =
+    limits?.filter((limit) => {
+      if (limit.remaining != null) return limit.remaining > 0;
+      if (limit.contributionUsedPercent != null) {
+        return limit.contributionUsedPercent < 100;
+      }
+      if (limit.limit != null && limit.limit > 0 && limit.contributed != null) {
+        return limit.contributed < limit.limit;
+      }
+      return false;
+    }).length ?? 0;
   open += strategies.filter(
     (s) => Array.isArray(s.missingData) && (s.missingData as unknown[]).length > 0
   ).length;
@@ -238,6 +249,30 @@ export function buildDeferredByYear(
   });
 }
 
+function buildPaidBreakdownFromMix(
+  mix: NonNullable<TaxProfile["lastEstimate"]>["taxMixPercent"],
+  progress: number
+): TaxPaidBucket[] {
+  if (!mix) return [];
+  const annual = 1;
+  const buckets: Array<{ bucket: TaxPaidBucketKey; share: number }> = [
+    { bucket: "Federal", share: mix.federal },
+    { bucket: "Social Security", share: mix.socialSecurity },
+    { bucket: "Medicare", share: mix.medicare },
+    { bucket: "NIIT", share: mix.niit },
+  ];
+  return buckets.map(({ bucket, share }) => {
+    const annualAmount = annual * share;
+    const split = splitByYearProgress(annualAmount, progress);
+    return {
+      bucket,
+      ytd: split.ytd,
+      restOfYear: split.restOfYear,
+      lifetime: annualAmount * 25,
+    };
+  });
+}
+
 export function computeTaxOutlook(params: {
   taxProfile: TaxProfile | null;
   members: Member[];
@@ -254,22 +289,31 @@ export function computeTaxOutlook(params: {
   const share = wageShare(members, earnerScope);
   const progress = taxYearProgress(taxYear, now);
   const filingStatus = taxProfile.filingStatus;
+  const estimate = taxProfile.lastEstimate;
+  const mix = estimate.taxMixPercent;
 
-  const federalAnnual = Number(taxProfile.lastEstimate.federalTax ?? 0) * share;
+  let federalAnnual = Number(estimate.federalTax ?? 0) * share;
   const wages = sumWages(scopedMembers);
   const investmentIncome = sumInvestmentIncome(scopedMembers);
-  const agi = Number(taxProfile.lastEstimate.adjustedGrossIncome ?? 0) * share;
+  const agi = Number(estimate.adjustedGrossIncome ?? 0) * share;
 
-  const ssAnnual = socialSecurityTax(wages, taxYear);
-  const medicareAnnual = medicareTax(wages, filingStatus);
-  const niitAnnual = niitTax(investmentIncome, agi, filingStatus);
+  let ssAnnual = socialSecurityTax(wages, taxYear);
+  let medicareAnnual = medicareTax(wages, filingStatus);
+  let niitAnnual = niitTax(investmentIncome, agi, filingStatus);
+
+  if (federalAnnual <= 0 && mix) {
+    federalAnnual = mix.federal;
+    ssAnnual = mix.socialSecurity;
+    medicareAnnual = mix.medicare;
+    niitAnnual = mix.niit;
+  }
 
   const federalSplit = splitByYearProgress(federalAnnual, progress);
   const ssSplit = splitByYearProgress(ssAnnual, progress);
   const medicareSplit = splitByYearProgress(medicareAnnual, progress);
   const niitSplit = splitByYearProgress(niitAnnual, progress);
 
-  const paidBreakdown: TaxPaidBucket[] = [
+  let paidBreakdown: TaxPaidBucket[] = [
     {
       bucket: "Federal",
       ytd: federalSplit.ytd,
@@ -296,14 +340,24 @@ export function computeTaxOutlook(params: {
     },
   ];
 
-  const paidYtd = paidBreakdown.reduce((s, b) => s + b.ytd, 0);
-  const paidRestOfYear = paidBreakdown.reduce((s, b) => s + b.restOfYear, 0);
-  const paidAnnual = paidYtd + paidRestOfYear;
+  let paidYtd = paidBreakdown.reduce((s, b) => s + b.ytd, 0);
+  let paidRestOfYear = paidBreakdown.reduce((s, b) => s + b.restOfYear, 0);
+  let paidAnnual = paidYtd + paidRestOfYear;
+
+  if (paidAnnual <= 0 && mix) {
+    paidBreakdown = buildPaidBreakdownFromMix(mix, progress);
+    paidYtd = paidBreakdown.reduce((s, b) => s + b.ytd, 0);
+    paidRestOfYear = paidBreakdown.reduce((s, b) => s + b.restOfYear, 0);
+    paidAnnual = paidYtd + paidRestOfYear;
+  }
 
   const totalIncome = sumTotalIncome(scopedMembers);
-  const actualTaxRate = totalIncome > 0 ? paidAnnual / totalIncome : 0;
+  const actualTaxRate =
+    totalIncome > 0
+      ? paidAnnual / totalIncome
+      : Number(estimate.totalTaxRate ?? estimate.effectiveRate ?? 0);
 
-  const marginalRate = Number(taxProfile.lastEstimate.marginalRate ?? 0.24);
+  const marginalRate = Number(estimate.marginalRate ?? 0.24);
   const contributions = sumPreTaxContributions(scopedMembers);
   const deferredAnnual = contributions * marginalRate;
   const deferredYtd = deferredAnnual * progress;
@@ -331,7 +385,7 @@ export function computeTaxOutlook(params: {
     deferredCumulative,
     deferredByYear,
     paidBreakdown,
-    effectiveRate: Number(taxProfile.lastEstimate.effectiveRate ?? 0),
+    effectiveRate: Number(estimate.effectiveRate ?? 0),
     marginalRate,
     totalIncome,
     actualTaxRate,

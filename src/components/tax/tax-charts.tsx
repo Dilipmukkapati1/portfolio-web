@@ -12,10 +12,15 @@ import {
   YAxis,
 } from "recharts";
 import { formatCompactCurrency } from "@/lib/investment-plan/format";
+import { formatPercent } from "@/lib/utils";
 import type { DeferredYearPoint, TaxPaidBucket } from "@/lib/tax/outlook";
 
-function tooltipCurrency(value: number) {
-  return formatCompactCurrency(value);
+function tooltipValue(value: number, valuesUnlocked: boolean) {
+  return valuesUnlocked ? formatCompactCurrency(value) : formatPercent(value * 100, 1);
+}
+
+function axisValue(value: number, valuesUnlocked: boolean) {
+  return valuesUnlocked ? formatCompactCurrency(Number(value)) : formatPercent(Number(value) * 100, 0);
 }
 
 export function TaxDeferredHistogram({
@@ -45,7 +50,7 @@ export function TaxDeferredHistogram({
             <CartesianGrid strokeDasharray="3 3" horizontal={false} className="stroke-border/50" />
             <XAxis
               type="number"
-              tickFormatter={(v) => (valuesUnlocked ? formatCompactCurrency(Number(v)) : "—")}
+              tickFormatter={(v) => axisValue(Number(v), valuesUnlocked)}
               tick={{ fontSize: 10 }}
               axisLine={false}
               tickLine={false}
@@ -58,7 +63,7 @@ export function TaxDeferredHistogram({
               axisLine={false}
               tickLine={false}
             />
-            <Tooltip formatter={(value: number) => tooltipCurrency(value)} />
+            <Tooltip formatter={(value: number) => tooltipValue(value, valuesUnlocked)} />
             <Bar dataKey="deferred" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
           </BarChart>
         </ResponsiveContainer>
@@ -107,13 +112,13 @@ export function TaxPaidStackedChart({
           <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-border/50" />
           <XAxis dataKey="label" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
           <YAxis
-            tickFormatter={(v) => (valuesUnlocked ? formatCompactCurrency(Number(v)) : "—")}
+            tickFormatter={(v) => axisValue(Number(v), valuesUnlocked)}
             tick={{ fontSize: 10 }}
             axisLine={false}
             tickLine={false}
             width={48}
           />
-          <Tooltip formatter={(value: number) => tooltipCurrency(value)} />
+          <Tooltip formatter={(value: number) => tooltipValue(value, valuesUnlocked)} />
           {["Federal", "Social Security", "Medicare", "NIIT"].map((key, i) => (
             <Bar key={key} dataKey={key} stackId="tax" fill={colors[i]} />
           ))}
@@ -144,13 +149,13 @@ export function TaxLifetimeLineChart({
           <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-border/50" />
           <XAxis dataKey="label" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
           <YAxis
-            tickFormatter={(v) => (valuesUnlocked ? formatCompactCurrency(Number(v)) : "—")}
+            tickFormatter={(v) => axisValue(Number(v), valuesUnlocked)}
             tick={{ fontSize: 10 }}
             axisLine={false}
             tickLine={false}
             width={48}
           />
-          <Tooltip formatter={(value: number) => tooltipCurrency(value)} />
+          <Tooltip formatter={(value: number) => tooltipValue(value, valuesUnlocked)} />
           <Line
             type="monotone"
             dataKey="value"

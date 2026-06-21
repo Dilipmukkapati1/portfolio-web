@@ -7,13 +7,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useHouseholdProfileChat } from "@/hooks/use-household-profile-chat";
 import { cn } from "@/lib/utils";
 
-const STARTER_PROMPTS = [
-  "Salary $150k",
-  "Maxed 401(k)",
-  "$500/mo to 401(k)",
-  "Max HSA",
-];
-
 function ChatBubble({
   message,
 }: {
@@ -48,25 +41,6 @@ export function HouseholdProfileChatPanel({
   const chat = useHouseholdProfileChat({ onMembersUpdated });
   const insetX = flush ? "px-2" : "px-3";
 
-  const starterChips =
-    chat.messages.length === 0 ? (
-      <div className="flex flex-wrap gap-1.5">
-        {STARTER_PROMPTS.map((prompt) => (
-          <Button
-            key={prompt}
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-8 text-xs"
-            disabled={chat.sending}
-            onClick={() => void chat.sendMessage(prompt)}
-          >
-            {prompt}
-          </Button>
-        ))}
-      </div>
-    ) : null;
-
   const messageArea = (
     <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain py-2">
       {chat.messages.map((m) => (
@@ -80,15 +54,6 @@ export function HouseholdProfileChatPanel({
 
   const inputArea = (
     <div className={cn("shrink-0 border-t border-border py-2", insetX)}>
-      {!chat.isUnlocked && (
-        <button
-          type="button"
-          className="mb-2 text-xs text-primary underline"
-          onClick={chat.showUnlockDialog}
-        >
-          Unlock to update amounts
-        </button>
-      )}
       {chat.error && (
         <p className="mb-2 text-xs text-destructive" role="alert">
           {chat.error}
@@ -101,7 +66,7 @@ export function HouseholdProfileChatPanel({
             variant="ghost"
             size="sm"
             className="shrink-0"
-            disabled={chat.sending}
+            disabled={chat.sending || !chat.isUnlocked}
             onClick={chat.clearChat}
           >
             Clear
@@ -111,6 +76,8 @@ export function HouseholdProfileChatPanel({
           <AdvisorInput
             onSend={(msg) => void chat.sendMessage(msg)}
             disabled={chat.sending}
+            locked={!chat.isUnlocked}
+            onLockedFocus={chat.showUnlockDialog}
             placeholder="Income, 401(k), HSA…"
             rows={embedded || flush ? 1 : 2}
           />
@@ -136,11 +103,6 @@ export function HouseholdProfileChatPanel({
           <span className="text-sm font-medium">Auto-save</span>
           <HouseholdAutoSaveToggle />
         </div>
-        {starterChips && (
-          <div className={cn("shrink-0 border-b border-border py-2", insetX)}>
-            {starterChips}
-          </div>
-        )}
         <div className={cn("flex min-h-0 flex-1 flex-col", insetX)}>
           {messageArea}
         </div>
@@ -156,7 +118,6 @@ export function HouseholdProfileChatPanel({
           <CardTitle className="text-lg">Chat</CardTitle>
           <HouseholdAutoSaveToggle />
         </div>
-        {starterChips}
       </CardHeader>
       <CardContent className="flex min-h-0 flex-1 flex-col gap-3 p-4">
         {messageArea}

@@ -9,23 +9,23 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatCompactCurrency } from "@/lib/investment-plan/format";
-import { formatCurrencyWhole } from "@/lib/utils";
+import { formatTaxShare, formatTaxTotal } from "@/lib/tax/display";
 import type { TaxPaidBucket } from "@/lib/tax/outlook";
 import { TAX_INSET_X } from "./tax-primitives";
 import { cn } from "@/lib/utils";
 
-function fmt(value: number, unlocked: boolean): string {
-  return unlocked ? formatCompactCurrency(value) : "—";
-}
+export { formatTaxTotal };
 
 export function TaxPaidBreakdownMobile({
   rows,
   lifetimeForward,
   valuesUnlocked,
+  paidAnnual,
 }: {
   rows: TaxPaidBucket[];
   lifetimeForward: number;
   valuesUnlocked: boolean;
+  paidAnnual: number;
 }) {
   return (
     <div>
@@ -34,12 +34,14 @@ export function TaxPaidBreakdownMobile({
           <p className="text-sm font-medium">{row.bucket}</p>
           <div className="mt-1 flex items-center justify-between text-sm">
             <span className="text-muted-foreground">YTD</span>
-            <span className="tabular-nums">{fmt(row.ytd, valuesUnlocked)}</span>
+            <span className="tabular-nums">
+              {formatTaxShare(row.ytd, paidAnnual, valuesUnlocked)}
+            </span>
           </div>
           <div className="mt-0.5 flex items-center justify-between text-sm">
             <span className="text-muted-foreground">Rest</span>
             <span className="tabular-nums text-muted-foreground">
-              {fmt(row.restOfYear, valuesUnlocked)}
+              {formatTaxShare(row.restOfYear, paidAnnual, valuesUnlocked)}
             </span>
           </div>
         </div>
@@ -47,7 +49,9 @@ export function TaxPaidBreakdownMobile({
       <div className={cn("flex items-center justify-between py-2.5", TAX_INSET_X)}>
         <span className="text-sm">Lifetime (fwd)</span>
         <span className="text-sm font-semibold tabular-nums">
-          {valuesUnlocked ? formatCompactCurrency(lifetimeForward) : "—"}
+          {valuesUnlocked
+            ? formatCompactCurrency(lifetimeForward)
+            : formatTaxShare(lifetimeForward, paidAnnual * 25, false)}
         </span>
       </div>
     </div>
@@ -57,10 +61,14 @@ export function TaxPaidBreakdownMobile({
 export function TaxPaidBreakdownDesktop({
   rows,
   valuesUnlocked,
+  paidAnnual,
 }: {
   rows: TaxPaidBucket[];
   valuesUnlocked: boolean;
+  paidAnnual: number;
 }) {
+  const lifetimeTotal = paidAnnual * 25;
+
   return (
     <Table>
       <TableHeader>
@@ -76,13 +84,13 @@ export function TaxPaidBreakdownDesktop({
           <TableRow key={row.bucket}>
             <TableCell>{row.bucket}</TableCell>
             <TableCell className="text-right tabular-nums">
-              {fmt(row.ytd, valuesUnlocked)}
+              {formatTaxShare(row.ytd, paidAnnual, valuesUnlocked)}
             </TableCell>
             <TableCell className="text-right tabular-nums">
-              {fmt(row.restOfYear, valuesUnlocked)}
+              {formatTaxShare(row.restOfYear, paidAnnual, valuesUnlocked)}
             </TableCell>
             <TableCell className="text-right tabular-nums">
-              {fmt(row.lifetime, valuesUnlocked)}
+              {formatTaxShare(row.lifetime, lifetimeTotal, valuesUnlocked)}
             </TableCell>
           </TableRow>
         ))}
@@ -94,10 +102,15 @@ export function TaxPaidBreakdownDesktop({
 export function TaxDeferredTable({
   rows,
   valuesUnlocked,
+  paidAnnual,
 }: {
   rows: Array<{ year: number; deferred: number; contributions: number; isYtd?: boolean }>;
   valuesUnlocked: boolean;
+  paidAnnual: number;
 }) {
+  const deferredTotal = rows.reduce((sum, row) => sum + row.deferred, 0);
+  const contributionTotal = rows.reduce((sum, row) => sum + row.contributions, 0);
+
   return (
     <Table>
       <TableHeader>
@@ -115,18 +128,22 @@ export function TaxDeferredTable({
               {row.isYtd ? " · YTD" : ""}
             </TableCell>
             <TableCell className="text-right tabular-nums">
-              {valuesUnlocked ? formatCompactCurrency(row.deferred) : "—"}
+              {formatTaxShare(
+                row.deferred,
+                valuesUnlocked ? deferredTotal : paidAnnual,
+                valuesUnlocked
+              )}
             </TableCell>
             <TableCell className="text-right tabular-nums">
-              {valuesUnlocked ? formatCompactCurrency(row.contributions) : "—"}
+              {formatTaxShare(
+                row.contributions,
+                valuesUnlocked ? contributionTotal : paidAnnual,
+                valuesUnlocked
+              )}
             </TableCell>
           </TableRow>
         ))}
       </TableBody>
     </Table>
   );
-}
-
-export function formatTaxTotal(value: number, unlocked: boolean): string {
-  return unlocked ? formatCurrencyWhole(value) : "—";
 }

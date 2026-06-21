@@ -17,6 +17,21 @@ import {
 } from "@/lib/household-types";
 import { newLocalId } from "@/lib/id";
 import { cn } from "@/lib/utils";
+import {
+  resolvedBonusAmount,
+  resolvedEmployerMatchAmount,
+  resolvedMemberContributionTotal,
+  resolvedMemberIncomeTotal,
+  resolvedWagesAmount,
+} from "@/lib/household-income";
+
+function formatCompactCurrency(amount: number): string {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  }).format(amount);
+}
 
 type MemberCardEditorProps = {
   member: MemberDraft;
@@ -26,28 +41,15 @@ type MemberCardEditorProps = {
 };
 
 function wagesAmount(member: MemberDraft): number {
-  return (
-    member.incomeSources.find((i) => i.type === "wages")?.amount ?? 0
-  );
+  return resolvedWagesAmount(member);
 }
 
 function bonusAmount(member: MemberDraft): number {
-  const line = member.incomeSources.find((i) => i.type === "bonus");
-  if (!line) return 0;
-  if (line.amountMode === "percent_of_wages" && line.percent != null) {
-    return Math.round((wagesAmount(member) * line.percent) / 100);
-  }
-  return line.amount;
+  return resolvedBonusAmount(member);
 }
 
 function previewEmployerMatch(member: MemberDraft, line: ContributionLineItem): number {
-  const mode = line.amountMode ?? "fixed";
-  if (mode === "fixed") return line.amount;
-  const base =
-    mode === "percent_of_wages_and_bonus"
-      ? wagesAmount(member) + bonusAmount(member)
-      : wagesAmount(member);
-  return Math.round((base * (line.percent ?? 0)) / 100);
+  return resolvedEmployerMatchAmount(member, line);
 }
 
 export function MemberCardEditor({
@@ -100,10 +102,10 @@ export function MemberCardEditor({
       ? "No income or contributions"
       : [
           member.incomeSources.length > 0
-            ? `${member.incomeSources.length} income`
+            ? `${formatCompactCurrency(resolvedMemberIncomeTotal(member))} income`
             : null,
           member.contributions.length > 0
-            ? `${member.contributions.length} contribution`
+            ? `${formatCompactCurrency(resolvedMemberContributionTotal(member))} saved`
             : null,
         ]
           .filter(Boolean)

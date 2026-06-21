@@ -1,8 +1,3 @@
-import {
-  resolveMemberContributionAmount,
-  resolveMemberIncomeAmounts,
-} from "@portfolio/contracts";
-import type { Member as ContractsMember } from "@portfolio/contracts";
 import type {
   ContributionLineItem,
   IncomeLineItem,
@@ -17,13 +12,55 @@ type MemberContributionsLike = MemberIncomeLike & {
   contributions?: ContributionLineItem[];
 };
 
-function asContractsMember(member: MemberIncomeLike): ContractsMember {
-  return { incomeSources: member.incomeSources ?? [] } as ContractsMember;
+function resolveBonusAmount(line: IncomeLineItem, wagesAmount: number): number {
+  if (line.type !== "bonus") return line.amount;
+  if (line.amountMode === "percent_of_wages" && line.percent != null) {
+    return Math.round((wagesAmount * line.percent) / 100);
+  }
+  return Math.max(0, line.amount);
+}
+
+function resolveMemberIncomeAmounts(member: MemberIncomeLike): {
+  wages: number;
+  bonus: number;
+  cashIncome: number;
+} {
+  const lines = member.incomeSources ?? [];
+  const rawWages = lines
+    .filter((l) => l.type === "wages")
+    .reduce((sum, l) => sum + l.amount, 0);
+
+  let bonus = 0;
+  for (const line of lines.filter((l) => l.type === "bonus")) {
+    bonus += resolveBonusAmount(line, rawWages);
+  }
+
+  const cashIncome = lines
+    .filter((l) => l.type === "cash_income")
+    .reduce((sum, l) => sum + l.amount, 0);
+
+  return { wages: rawWages, bonus, cashIncome };
+}
+
+function resolveMemberContributionAmount(
+  member: MemberContributionsLike,
+  line: ContributionLineItem
+): number {
+  if (line.type !== "employer_match") return line.amount;
+
+  const mode = line.amountMode ?? "fixed";
+  if (mode === "fixed") return Math.max(0, line.amount);
+
+  const { wages, bonus } = resolveMemberIncomeAmounts(member);
+  const percent = line.percent ?? 0;
+  const base =
+    mode === "percent_of_wages_and_bonus" ? wages + bonus : wages;
+  return Math.round((base * percent) / 100);
 }
 
 /** Annual income including resolved % bonus and other line items. */
 export function resolvedMemberIncomeTotal(member: MemberIncomeLike): number {
-  const resolved = resolveMemberIncomeAmounts(asContractsMember(member));
+  const resolved = resolveMemberIncomeAmounts(member);
   let total = resolved.wages + resolved.bonus + resolved.cashIncome;
   for (const line of member.incomeSources ?? []) {
     if (
@@ -68,7 +105,7 @@ export function resolveHouseholdIncomeBreakdown(
   let earnerCount = 0;
 
   for (const member of active) {
-    const resolved = resolveMemberIncomeAmounts(asContractsMember(member));
+    const resolved = resolveMemberIncomeAmounts(member);
     const memberTotal = resolvedMemberIncomeTotal(member);
     wages += resolved.wages;
     bonus += resolved.bonus;
@@ -92,25 +129,24 @@ export function resolvedMemberContributionTotal(
   member: MemberContributionsLike
 ): number {
   return (member.contributions ?? []).reduce(
-    (sum, line) =>
-      sum + resolveMemberContributionAmount(asContractsMember(member), line),
+    (sum, line) => sum + resolveMemberContributionAmount(member, line),
     0
   );
 }
 
 export function resolvedBonusAmount(member: MemberIncomeLike): number {
-  return resolveMemberIncomeAmounts(asContractsMember(member)).bonus;
+  return resolveMemberIncomeAmounts(member).bonus;
 }
 
 export function resolvedWagesAmount(member: MemberIncomeLike): number {
-  return resolveMemberIncomeAmounts(asContractsMember(member)).wages;
+  return resolveMemberIncomeAmounts(member).wages;
 }
 
 export function resolvedEmployerMatchAmount(
   member: MemberContributionsLike,
   line: ContributionLineItem
 ): number {
-  return resolveMemberContributionAmount(asContractsMember(member), line);
+  return resolveMemberContributionAmount(member, line);
 }
 
 export type { MemberDraft };

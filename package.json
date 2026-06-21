@@ -3,11 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "predev": "node scripts/ensure-dev-env.mjs",
+    "predev": "node scripts/ensure-dev-env.mjs && npm run build --prefix ../portfolio-contracts",
     "dev": "node scripts/dev.mjs",
     "dev:azure": "node scripts/dev.mjs --azure-dev",
     "dev:local": "node scripts/dev.mjs --local",
     "dev:local-api": "node scripts/dev.mjs --local",
+    "prebuild": "npm run build --prefix ../portfolio-contracts",
     "build": "next build && node scripts/copy-standalone.mjs",
     "start": "next start",
     "lint": "next lint",

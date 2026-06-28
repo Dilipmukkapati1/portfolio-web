@@ -1,12 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense } from "react";
 import { Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { ExpensePlannerPageSkeleton } from "@/components/shared/page-skeletons";
 import { Button } from "@/components/ui/button";
 import { useIsMobile } from "@/hooks/use-is-mobile";
+import { useQueryTab } from "@/hooks/use-query-tab";
 import { useExpensePlanner } from "@/hooks/use-expense-planner";
+import { parseExpensePlannerTab } from "@/lib/url-state";
 import { cn } from "@/lib/utils";
 import { ExpenseChatPanel } from "./expense-chat-panel";
 import {
@@ -19,10 +21,14 @@ import { OutlookTab } from "./outlook-tab";
 import { OverviewTab } from "./overview-tab";
 import { PlanTab } from "./plan-tab";
 
-export function ExpensePlannerPage() {
+function ExpensePlannerPageContent() {
   const state = useExpensePlanner();
   const isMobile = useIsMobile();
-  const [mobileTab, setMobileTab] = useState<ExpensePlannerTab>("overview");
+  const [activeTab, setActiveTab] = useQueryTab<ExpensePlannerTab>({
+    pathname: "/expense-planner",
+    parse: parseExpensePlannerTab,
+    defaultTab: "overview",
+  });
 
   if (state.loading && !state.plan) {
     return (
@@ -57,14 +63,14 @@ export function ExpensePlannerPage() {
   const outlook = <OutlookTab state={state} />;
   const mappings = <MappingsTab state={state} />;
   const chat = (
-    <ExpenseChatPanel embedded={isMobile} flush={isMobile && mobileTab === "chat"} />
+    <ExpenseChatPanel embedded={isMobile} flush={isMobile && activeTab === "chat"} />
   );
 
   return (
     <div
       className={
         isMobile
-          ? mobileTab === "chat"
+          ? activeTab === "chat"
             ? "mx-auto flex h-[calc(100dvh-4rem)] max-w-[1080px] flex-col overflow-hidden px-0 pb-[calc(4.5rem+env(safe-area-inset-bottom))] pt-3"
             : "mx-auto flex min-h-[calc(100dvh-4rem)] max-w-[1080px] flex-col px-3 pb-[calc(4.5rem+env(safe-area-inset-bottom))] pt-3"
           : "mx-auto max-w-[1080px] space-y-6 p-6"
@@ -84,18 +90,18 @@ export function ExpensePlannerPage() {
           <main
             className={cn(
               "min-h-0 flex-1",
-              mobileTab === "chat" ? "flex flex-col overflow-hidden px-2" : undefined
+              activeTab === "chat" ? "flex flex-col overflow-hidden px-2" : undefined
             )}
             role="tabpanel"
-            aria-label={mobileTab}
+            aria-label={activeTab}
           >
-            {mobileTab === "overview" && overview}
-            {mobileTab === "plan" && plan}
-            {mobileTab === "outlook" && outlook}
-            {mobileTab === "mappings" && mappings}
-            {mobileTab === "chat" && chat}
+            {activeTab === "overview" && overview}
+            {activeTab === "plan" && plan}
+            {activeTab === "outlook" && outlook}
+            {activeTab === "mappings" && mappings}
+            {activeTab === "chat" && chat}
           </main>
-          <ExpensePlannerBottomNav active={mobileTab} onChange={setMobileTab} />
+          <ExpensePlannerBottomNav active={activeTab} onChange={setActiveTab} />
         </>
       ) : (
         <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
@@ -123,5 +129,19 @@ export function ExpensePlannerPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export function ExpensePlannerPage() {
+  return (
+    <Suspense
+      fallback={
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
+          <ExpensePlannerPageSkeleton />
+        </motion.div>
+      }
+    >
+      <ExpensePlannerPageContent />
+    </Suspense>
   );
 }

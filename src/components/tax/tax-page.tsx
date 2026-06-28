@@ -1,14 +1,14 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { TaxDisclaimer } from "@/components/TaxDisclaimer";
 import { TaxPageSkeleton } from "@/components/shared/page-skeletons";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { useIsMobile } from "@/hooks/use-is-mobile";
+import { useQueryTab } from "@/hooks/use-query-tab";
 import { useTax } from "@/hooks/use-tax";
 import { usePrivacy } from "@/components/PrivacyProvider";
 import {
@@ -16,6 +16,7 @@ import {
   earnerOptions,
   membersMissingDateOfBirth,
 } from "@/lib/tax/outlook";
+import { parseTaxTab } from "@/lib/url-state";
 import { TaxBottomNav } from "./tax-bottom-nav";
 import { TaxHeader } from "./tax-header";
 import { TaxOverviewSection } from "./tax-overview-tab";
@@ -25,27 +26,17 @@ import { TaxSectionTabs, type TaxTab } from "./tax-section-tabs";
 import type { TaxViewMode } from "./tax-view-controls";
 import { cn } from "@/lib/utils";
 
-function parseTaxTab(value: string | null): TaxTab {
-  if (value === "plan" || value === "advisor" || value === "overview") {
-    return value;
-  }
-  return "overview";
-}
-
 function TaxPageContent() {
-  const searchParams = useSearchParams();
   const state = useTax();
   const { showUnlockDialog } = usePrivacy();
   const isMobile = useIsMobile();
-  const [activeTab, setActiveTab] = useState<TaxTab>(() =>
-    parseTaxTab(searchParams.get("tab"))
-  );
+  const [activeTab, setActiveTab] = useQueryTab<TaxTab>({
+    pathname: "/tax",
+    parse: parseTaxTab,
+    defaultTab: "overview",
+  });
   const [taxView, setTaxView] = useState<TaxViewMode>("paid");
   const [earnerScope, setEarnerScope] = useState<string>("household");
-
-  useEffect(() => {
-    setActiveTab(parseTaxTab(searchParams.get("tab")));
-  }, [searchParams]);
 
   const earners = useMemo(
     () => earnerOptions(state.members),
@@ -75,13 +66,6 @@ function TaxPageContent() {
       return;
     }
     await state.recompute();
-  }
-
-  function handleTabChange(tab: TaxTab) {
-    setActiveTab(tab);
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("tab", tab);
-    window.history.replaceState(null, "", `/tax?${params.toString()}`);
   }
 
   if (state.householdLoading || (state.household && state.loading)) {
@@ -218,7 +202,7 @@ function TaxPageContent() {
 
       {!isMobile && (
         <div className="shrink-0">
-          <TaxSectionTabs active={activeTab} onChange={handleTabChange} />
+          <TaxSectionTabs active={activeTab} onChange={setActiveTab} />
         </div>
       )}
 
@@ -250,7 +234,7 @@ function TaxPageContent() {
           >
             {tabPanel}
           </main>
-          <TaxBottomNav active={activeTab} onChange={handleTabChange} />
+          <TaxBottomNav active={activeTab} onChange={setActiveTab} />
         </>
       ) : (
         <div

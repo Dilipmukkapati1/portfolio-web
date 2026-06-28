@@ -1,7 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { Suspense, useState } from "react";
 import { motion } from "framer-motion";
 import { HouseholdMembersSection } from "@/components/household/household-members-section";
 import { HouseholdOverviewSection } from "@/components/household/household-overview-section";
@@ -13,34 +12,19 @@ import {
 } from "@/components/household/household-section-tabs";
 import { useHousehold } from "@/components/HouseholdProvider";
 import { useIsMobile } from "@/hooks/use-is-mobile";
+import { useQueryTab } from "@/hooks/use-query-tab";
+import { parseHouseholdTab } from "@/lib/url-state";
 import { cn } from "@/lib/utils";
 
-function parseHouseholdTab(value: string | null): HouseholdTab {
-  if (value === "overview" || value === "chat" || value === "members") {
-    return value;
-  }
-  return "overview";
-}
-
 function HouseholdPageContent() {
-  const searchParams = useSearchParams();
   const isMobile = useIsMobile();
   const { loading } = useHousehold();
-  const [activeTab, setActiveTab] = useState<HouseholdTab>(() =>
-    parseHouseholdTab(searchParams.get("tab"))
-  );
+  const [activeTab, setActiveTab] = useQueryTab<HouseholdTab>({
+    pathname: "/household",
+    parse: parseHouseholdTab,
+    defaultTab: "overview",
+  });
   const [membersRefreshToken, setMembersRefreshToken] = useState(0);
-
-  useEffect(() => {
-    setActiveTab(parseHouseholdTab(searchParams.get("tab")));
-  }, [searchParams]);
-
-  function handleTabChange(tab: HouseholdTab) {
-    setActiveTab(tab);
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("tab", tab);
-    window.history.replaceState(null, "", `/household?${params.toString()}`);
-  }
 
   const isChatTab = activeTab === "chat";
 
@@ -48,7 +32,7 @@ function HouseholdPageContent() {
     <HouseholdOverviewSection
       embedded
       refreshToken={membersRefreshToken}
-      onNavigateTab={() => handleTabChange("members")}
+      onNavigateTab={() => setActiveTab("members")}
     />
   );
 
@@ -123,7 +107,7 @@ function HouseholdPageContent() {
 
       {!isMobile && (
         <div className="shrink-0">
-          <HouseholdSectionTabs active={activeTab} onChange={handleTabChange} />
+          <HouseholdSectionTabs active={activeTab} onChange={setActiveTab} />
         </div>
       )}
 
@@ -139,7 +123,7 @@ function HouseholdPageContent() {
           >
             {tabPanel}
           </main>
-          <HouseholdBottomNav active={activeTab} onChange={handleTabChange} />
+          <HouseholdBottomNav active={activeTab} onChange={setActiveTab} />
         </>
       ) : (
         <div

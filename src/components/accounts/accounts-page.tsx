@@ -1,20 +1,16 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 import { motion } from "framer-motion";
 import { PageHeader } from "@/components/shared/page-header";
 import { useIsMobile } from "@/hooks/use-is-mobile";
+import { useQueryTab } from "@/hooks/use-query-tab";
+import { parseAccountsTab } from "@/lib/url-state";
 import { cn } from "@/lib/utils";
 import { AccountsBottomNav } from "./accounts-bottom-nav";
 import { AccountsSectionTabs, type AccountsTab } from "./accounts-section-tabs";
 import { AccountsListTab } from "./accounts-tab";
 import { ConnectionsTab } from "./connections-tab";
-
-function parseAccountsTab(value: string | null): AccountsTab {
-  if (value === "connections") return "connections";
-  return "accounts";
-}
 
 const TAB_DESCRIPTIONS: Record<AccountsTab, string> = {
   accounts:
@@ -23,27 +19,13 @@ const TAB_DESCRIPTIONS: Record<AccountsTab, string> = {
 };
 
 function AccountsPageContent() {
-  const searchParams = useSearchParams();
   const isMobile = useIsMobile();
-  const [activeTab, setActiveTab] = useState<AccountsTab>(() =>
-    parseAccountsTab(searchParams.get("tab"))
-  );
-
-  useEffect(() => {
-    setActiveTab(parseAccountsTab(searchParams.get("tab")));
-  }, [searchParams]);
-
-  function handleTabChange(tab: AccountsTab) {
-    setActiveTab(tab);
-    const params = new URLSearchParams(searchParams.toString());
-    if (tab === "accounts") {
-      params.delete("tab");
-    } else {
-      params.set("tab", tab);
-    }
-    const query = params.toString();
-    window.history.replaceState(null, "", query ? `/accounts?${query}` : "/accounts");
-  }
+  const [activeTab, setActiveTab] = useQueryTab<AccountsTab>({
+    pathname: "/accounts",
+    parse: parseAccountsTab,
+    defaultTab: "accounts",
+    omitDefaultFromUrl: true,
+  });
 
   const tabPanel = (
     <>
@@ -69,7 +51,7 @@ function AccountsPageContent() {
           description={TAB_DESCRIPTIONS[activeTab]}
         />
         {!isMobile && (
-          <AccountsSectionTabs active={activeTab} onChange={handleTabChange} />
+          <AccountsSectionTabs active={activeTab} onChange={setActiveTab} />
         )}
       </div>
 
@@ -78,7 +60,7 @@ function AccountsPageContent() {
           <main className="min-h-0 flex-1 overflow-y-auto" role="tabpanel" aria-label={activeTab}>
             {tabPanel}
           </main>
-          <AccountsBottomNav active={activeTab} onChange={handleTabChange} />
+          <AccountsBottomNav active={activeTab} onChange={setActiveTab} />
         </>
       ) : (
         <div role="tabpanel" aria-label={activeTab}>

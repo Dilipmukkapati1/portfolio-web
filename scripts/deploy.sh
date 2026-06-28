@@ -128,6 +128,14 @@ deploy_static_web_app() {
     echo "Missing .next/standalone. Run npm run build before deploy." >&2
     exit 1
   fi
+  if [[ -d "$ROOT/.next/static/development" ]]; then
+    echo "Refusing to deploy: .next/static/development present (run a clean production build)." >&2
+    exit 1
+  fi
+  if ! compgen -G "$ROOT/.next/static/chunks/app/(auth)/layout-"*.js >/dev/null; then
+    echo "Refusing to deploy: missing app/(auth)/layout chunk (run npm run build)." >&2
+    exit 1
+  fi
   rm -rf "$ROOT/.swa-deploy"
 
   echo "Deploying to Static Web App (${DEPLOY_ENV})..."

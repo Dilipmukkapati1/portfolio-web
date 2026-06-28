@@ -1,6 +1,6 @@
 import type { TransactionRecord } from "@/lib/transactions";
 
-const EXCLUDED_CATEGORIES = new Set(["transfer", "investment"]);
+const EXCLUDED_CATEGORIES = new Set(["transfer", "investment", "income"]);
 
 export type TransactionPeriodSummary = {
   totalCredits: number;

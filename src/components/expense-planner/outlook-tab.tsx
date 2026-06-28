@@ -19,8 +19,8 @@ import {
 import { formatCurrency, formatPercent } from "@/lib/utils";
 import {
   mergeCategoryLabel,
-  visibleCategoryPreferences,
 } from "@/lib/expense-planner/categories";
+import { planBudgetCategories } from "@portfolio/contracts";
 import {
   monthsInRange,
   OUTLOOK_OPTIONS,
@@ -49,7 +49,9 @@ export function OutlookTab({ state }: { state: PlannerState }) {
   );
 
   const categories = state.plan?.categories ?? [];
-  const visible = visibleCategoryPreferences(categories);
+  const planTotal = state.plan?.monthlyExpenseTotal ?? 0;
+  const allocationMode = state.plan?.budgetAllocationMode ?? "dollar";
+  const visible = planBudgetCategories(categories);
   const valuesUnlocked = state.valuesUnlocked;
   const outlookPeriod = outlookRange(
     outlookPreset,
@@ -74,7 +76,9 @@ export function OutlookTab({ state }: { state: PlannerState }) {
   const monthlyPace = projectedMonthlyPace(currentSpend, dayOfMonth, daysInMonth);
   const monthlyBudget =
     outlookCategory === "all"
-      ? monthlyBudgetTotal(categories)
+      ? (planTotal > 0
+          ? planTotal
+          : monthlyBudgetTotal(categories, planTotal, allocationMode))
       : categories.find((c) => c.category === outlookCategory)?.monthlyBudget ?? 0;
 
   const outlook = categoryOutlook({

@@ -5,17 +5,21 @@ import type { ExpenseMappingRule } from "@portfolio/contracts";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/utils";
+import { mergeCategoryLabel } from "@/lib/expense-planner/categories";
+import { planBudgetCategories } from "@portfolio/contracts";
 import { MappingRuleForm } from "./mapping-rule-form";
 import { MappingRuleList } from "./mapping-rule-list";
-import { UnmappedTransactionsList } from "./unmapped-transactions-list";
+import { MappingTransactionsList } from "./mapping-transactions-list";
 import type { useExpensePlanner } from "@/hooks/use-expense-planner";
 
 type PlannerState = ReturnType<typeof useExpensePlanner>;
 
 export function MappingsTab({ state }: { state: PlannerState }) {
   const categories = state.plan?.categories ?? [];
+  const expenseCategories = planBudgetCategories(categories);
   const rules = state.plan?.mappingRules ?? [];
   const [editingRule, setEditingRule] = useState<ExpenseMappingRule | null>(null);
+  const [showRules, setShowRules] = useState(rules.length === 0);
 
   const saveRule = (rule: ExpenseMappingRule) => {
     const exists = rules.some((r) => r.id === rule.id);
@@ -24,6 +28,7 @@ export function MappingsTab({ state }: { state: PlannerState }) {
       : [...rules, rule];
     state.updateMappingRules(next);
     setEditingRule(null);
+    setShowRules(true);
   };
 
   const deleteRule = (id: string) => {
@@ -31,67 +36,39 @@ export function MappingsTab({ state }: { state: PlannerState }) {
     if (editingRule?.id === id) setEditingRule(null);
   };
 
+  const unmappedCount = state.unmappedTransactions.length;
   const unmappedAmount = state.unmappedTransactions.reduce(
-    (s, t) => s + Math.abs(t.amount),
+    (s, t) => s + Math.abs(Number(t.amount) || 0),
     0
   );
 
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
-        Label transactions by merchant name or payment type so past and future imports
-        group correctly in Overview.
+        Assign a predefined mapping rule to each expense debit. This list matches
+        settled debits from Transactions (credits, transfers, and income excluded).
       </p>
 
-      {state.unmappedTransactions.length > 0 && (
+      {unmappedCount > 0 && (
         <div className="rounded-lg border border-yellow-500/40 bg-yellow-500/10 p-3 text-sm">
           <p className="font-medium">Needs mapping</p>
           <p className="mt-1 opacity-90">
-            {state.unmappedTransactions.length} transaction
-            {state.unmappedTransactions.length === 1 ? "" : "s"} in {state.range.label} (
-            {state.valuesUnlocked
-              ? formatCurrency(unmappedAmount, { decimals: 0 })
-              : "unlock to view"}
-            ).
+            {unmappedCount} uncategorized transaction
+            {unmappedCount === 1 ? "" : "s"}
+            {state.valuesUnlocked && unmappedCount > 0
+              ? ` (${formatCurrency(unmappedAmount, { decimals: 0 })})`
+              : ""}
+            .
           </p>
         </div>
       )}
 
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">Mapping rules ({rules.length})</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <MappingRuleList
-            rules={rules}
-            categories={categories}
-            editingId={editingRule?.id ?? null}
-            onEdit={setEditingRule}
-            onDelete={deleteRule}
-          />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">
-            {editingRule ? "Edit rule" : "New rule"}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <MappingRuleForm
-            categories={categories}
-            initialRule={editingRule}
-            onSave={saveRule}
-            onCancel={editingRule ? () => setEditingRule(null) : undefined}
-          />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="pb-2">
-          <div className="flex items-center justify-between gap-2">
-            <CardTitle className="text-base">Bulk actions</CardTitle>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <CardTitle className="text-base">
+              Debit transactions · Page {state.mappingPageNumber}
+            </CardTitle>
             <Button
               type="button"
               size="sm"
@@ -103,21 +80,67 @@ export function MappingsTab({ state }: { state: PlannerState }) {
             </Button>
           </div>
         </CardHeader>
+        <CardContent>
+          <MappingTransactionsList
+            transactions={state.mappingTransactions}
+            rules={rules}
+            categories={expenseCategories}
+            valuesUnlocked={state.mappingValuesUnlocked}
+            categorizingTxnId={state.categorizingTxnId}
+            pageNumber={state.mappingPageNumber}
+            hasMore={state.mappingHasMore}
+            pageLoading={state.mappingPageLoading}
+            onPreviousPage={() =>
+              void state.goToMappingPage(state.mappingPageIndex - 1)
+            }
+            onNextPage={() =>
+              void state.goToMappingPage(state.mappingPageIndex + 1)
+            }
+            onApplyRule={(txnId, rule) =>
+              void state.applyMappingRuleToTransaction(txnId, rule)
+            }
+          />
+        </CardContent>
       </Card>
 
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">Unmapped transactions</CardTitle>
+          <div className="flex items-center justify-between gap-2">
+            <CardTitle className="text-base">
+              Mapping rules ({rules.length})
+            </CardTitle>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowRules((v) => !v)}
+            >
+              {showRules ? "Hide" : "Manage rules"}
+            </Button>
+          </div>
         </CardHeader>
-        <CardContent>
-          <UnmappedTransactionsList
-            transactions={state.unmappedTransactions}
-            categories={categories}
-            valuesUnlocked={state.valuesUnlocked}
-            categorizingTxnId={state.categorizingTxnId}
-            onAssign={(txnId, category) => void state.categorizeTransaction(txnId, category)}
-          />
-        </CardContent>
+        {showRules && (
+          <CardContent className="space-y-4">
+            <MappingRuleList
+              rules={rules}
+              categories={categories}
+              editingId={editingRule?.id ?? null}
+              onEdit={setEditingRule}
+              onDelete={deleteRule}
+            />
+            <div className="border-t border-border pt-4">
+              <p className="mb-3 text-sm font-medium">
+                {editingRule ? "Edit rule" : "New rule"}
+              </p>
+              <MappingRuleForm
+                categories={categories}
+                initialRule={editingRule}
+                onSave={saveRule}
+                onCancel={editingRule ? () => setEditingRule(null) : undefined}
+              />
+            </div>
+          </CardContent>
+        )}
       </Card>
     </div>
   );

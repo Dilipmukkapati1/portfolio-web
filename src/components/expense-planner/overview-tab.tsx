@@ -5,6 +5,7 @@ import {
   budgetForDuration,
   budgetUsedPercent,
   buildRedFlags,
+  isExpenseCategory,
   monthlyBudgetTotal,
 } from "@portfolio/contracts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,7 +13,8 @@ import { StatCard } from "@/components/shared/stat-card";
 import { formatCurrency, formatPercent } from "@/lib/utils";
 import type { TransactionCategory } from "@portfolio/contracts";
 import type { DurationPreset } from "@/lib/expense-planner/date-ranges";
-import { mergeCategoryLabel, visibleCategoryPreferences } from "@/lib/expense-planner/categories";
+import { mergeCategoryLabel } from "@/lib/expense-planner/categories";
+import { planBudgetCategories } from "@portfolio/contracts";
 import {
   buildCategoryPieData,
   hasSpendData,
@@ -33,9 +35,12 @@ export function OverviewTab({
 }) {
   const [pieView, setPieView] = useState<OverviewPieView>("category");
   const categories = state.plan?.categories ?? [];
-  const visible = visibleCategoryPreferences(categories);
-  const monthlyTotal = monthlyBudgetTotal(categories);
-  const budgetRange = budgetForDuration(state.duration, monthlyTotal);
+  const planTotal = state.plan?.monthlyExpenseTotal ?? 0;
+  const allocationMode = state.plan?.budgetAllocationMode ?? "dollar";
+  const visible = planBudgetCategories(categories);
+  const monthlyTotal = monthlyBudgetTotal(categories, planTotal, allocationMode);
+  const budgetCap = planTotal > 0 ? planTotal : monthlyTotal;
+  const budgetRange = budgetForDuration(state.duration, budgetCap);
   const totalSpend = state.summary?.totalSpend ?? 0;
   const usedPct = budgetUsedPercent(totalSpend, budgetRange);
   const valuesUnlocked = state.valuesUnlocked;
@@ -44,7 +49,7 @@ export function OverviewTab({
     () =>
       buildCategoryPieData(
         state.summary,
-        visible,
+        visible.filter((c) => isExpenseCategory(c.category)),
         (category) =>
           mergeCategoryLabel(category as TransactionCategory, categories),
         valuesUnlocked
@@ -114,7 +119,7 @@ export function OverviewTab({
       />
 
       <StatCard
-        title="Total expenses"
+        title="Total expenses (debits)"
         value={
           valuesUnlocked
             ? `${formatCurrency(totalSpend, { decimals: 0 })} · ${formatPercent(budgetRange > 0 ? (totalSpend / budgetRange) * 100 : 0, 0)} of budget`

@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { HouseholdMembersSection } from "@/components/household/household-members-section";
+import { HouseholdOverviewSection } from "@/components/household/household-overview-section";
 import { HouseholdProfileChatPanel } from "@/components/household/household-profile-chat-panel";
 import { HouseholdBottomNav } from "@/components/household/household-bottom-nav";
 import {
@@ -15,8 +16,10 @@ import { useIsMobile } from "@/hooks/use-is-mobile";
 import { cn } from "@/lib/utils";
 
 function parseHouseholdTab(value: string | null): HouseholdTab {
-  if (value === "chat" || value === "members") return value;
-  return "members";
+  if (value === "overview" || value === "chat" || value === "members") {
+    return value;
+  }
+  return "overview";
 }
 
 function HouseholdPageContent() {
@@ -41,6 +44,14 @@ function HouseholdPageContent() {
 
   const isChatTab = activeTab === "chat";
 
+  const overviewPanel = (
+    <HouseholdOverviewSection
+      embedded
+      refreshToken={membersRefreshToken}
+      onNavigateTab={() => handleTabChange("members")}
+    />
+  );
+
   const membersPanel = (
     <HouseholdMembersSection
       embedded
@@ -60,6 +71,7 @@ function HouseholdPageContent() {
 
   const tabPanel = (
     <>
+      {activeTab === "overview" && overviewPanel}
       {activeTab === "members" && membersPanel}
       {activeTab === "chat" && (
         <div className="flex min-h-0 flex-1 flex-col">{chatPanel}</div>

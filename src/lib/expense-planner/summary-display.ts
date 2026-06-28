@@ -64,7 +64,7 @@ export function topCategorySlices(
 
 export function hasSpendData(summary: ExpenseSummaryView | null): boolean {
   if (!summary) return false;
-  if ((summary.transactionCount ?? 0) > 0) return true;
+  if ((summary.totalSpend ?? 0) > 0) return true;
   if (summary.spendByCategory && Object.keys(summary.spendByCategory).length > 0) {
     return true;
   }

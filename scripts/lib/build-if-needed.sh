@@ -33,9 +33,29 @@ ensure_web_deps() {
 
 ensure_contracts_built() {
   local contracts="$1/../portfolio-contracts"
-  if [[ ! -f "$contracts/dist/index.js" ]]; then
-    echo "Building portfolio-contracts..."
-    (cd "$contracts" && npm run build)
+  echo "Building portfolio-contracts..."
+  (cd "$contracts" && npm run build)
+}
+
+verify_production_build() {
+  local root="$1"
+  local missing=0
+
+  if [[ ! -d "$root/.next/standalone" ]]; then
+    echo "Build verification failed: missing .next/standalone" >&2
+    missing=1
+  fi
+  if [[ -d "$root/.next/static/development" ]]; then
+    echo "Build verification failed: dev artifacts in .next/static/development" >&2
+    missing=1
+  fi
+  if ! compgen -G "$root/.next/static/chunks/app/(auth)/layout-"*.js >/dev/null; then
+    echo "Build verification failed: missing app/(auth)/layout chunk" >&2
+    missing=1
+  fi
+
+  if [[ "$missing" -ne 0 ]]; then
+    exit 1
   fi
 }
 
@@ -50,7 +70,9 @@ build_web_if_needed() {
   mkdir -p "$root/.local"
 
   if [[ "$force" != "1" ]] && [[ -f "$fp_file" ]] && [[ "$(cat "$fp_file")" == "$fp" ]] \
-    && [[ -d "$root/.next/standalone" ]]; then
+    && [[ -d "$root/.next/standalone" ]] \
+    && [[ ! -d "$root/.next/static/development" ]] \
+    && compgen -G "$root/.next/static/chunks/app/(auth)/layout-"*.js >/dev/null; then
     echo "Skipping build (sources and env unchanged — use --build to force)"
     return 0
   fi
@@ -58,8 +80,10 @@ build_web_if_needed() {
   ensure_web_deps "$root" "$force_install"
   ensure_contracts_built "$root"
 
-  echo "Building portfolio-web..."
-  (cd "$root" && npm run build)
+  echo "Building portfolio-web (clean production build)..."
+  rm -rf "$root/.next"
+  (cd "$root" && NODE_ENV=production npm run build)
+  verify_production_build "$root"
 
   echo "$fp" >"$fp_file"
 }

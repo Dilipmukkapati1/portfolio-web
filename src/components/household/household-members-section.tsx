@@ -17,7 +17,6 @@ import {
   type HouseholdFormValues,
 } from "@/components/HouseholdForm";
 import { FormPanelSkeleton } from "@/components/shared/page-skeletons";
-import { HouseholdIncomeSummary } from "@/components/household/household-income-summary";
 import { cn } from "@/lib/utils";
 import {
   resolvedMemberContributionTotal,
@@ -162,15 +161,6 @@ export function HouseholdMembersSection({
   const filingLabel =
     FILING_LABELS[household?.filingStatus ?? ""] ?? household?.filingStatus ?? "—";
 
-  const incomeSummary = (
-    <HouseholdIncomeSummary
-      members={members}
-      isUnlocked={isUnlocked}
-      onUnlock={showUnlockDialog}
-      loading={loading}
-    />
-  );
-
   const memberList = (
     <>
       {error && (
@@ -229,7 +219,6 @@ export function HouseholdMembersSection({
 
   const content = embedded ? (
     <div className="space-y-3">
-      {incomeSummary}
       <div className="flex items-center justify-between gap-2">
         <p className="text-xs text-muted-foreground truncate">
           {household?.displayName ?? "Household"} ·{" "}
@@ -242,7 +231,6 @@ export function HouseholdMembersSection({
   ) : (
     <Card>
       <CardHeader className="space-y-4 pb-4">
-        {incomeSummary}
         <div className="flex flex-row flex-wrap items-start justify-between gap-3">
           <div>
             <CardTitle className="text-lg">Members</CardTitle>

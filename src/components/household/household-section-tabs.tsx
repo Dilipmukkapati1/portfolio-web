@@ -1,15 +1,16 @@
 "use client";
 
-import { MessageSquare, Users, type LucideIcon } from "lucide-react";
+import { LayoutDashboard, MessageSquare, Users, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export type HouseholdTab = "members" | "chat";
+export type HouseholdTab = "overview" | "members" | "chat";
 
 export const HOUSEHOLD_TABS: Array<{
   id: HouseholdTab;
   label: string;
   icon: LucideIcon;
 }> = [
+  { id: "overview", label: "Overview", icon: LayoutDashboard },
   { id: "members", label: "Members", icon: Users },
   { id: "chat", label: "Chat", icon: MessageSquare },
 ];

@@ -360,4 +360,14 @@ export const api = {
       method: "POST",
       body: JSON.stringify(body),
     }),
+  expenseChat: (body: import("@portfolio/contracts").ExpenseChatRequest) =>
+    apiFetch<
+      import("@portfolio/contracts").ExpenseChatResponse & {
+        privacyMode?: "locked" | "unlocked";
+        valuesUnlocked?: boolean;
+      }
+    >("/expense-plan/chat", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
 };

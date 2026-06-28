@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { mergeCategoryLabel } from "@/lib/expense-planner/categories";
+import { mergeCategoryLabel, visibleCategoryPreferences } from "@/lib/expense-planner/categories";
 import type { ExpenseCategoryPreference } from "@portfolio/contracts";
 
 const MATCH_TYPES = [
@@ -49,7 +49,7 @@ export function MappingRuleForm({
     }
   }, [initialRule]);
 
-  const visible = categories.filter((c) => !c.hidden);
+  const visible = visibleCategoryPreferences(categories);
 
   const handleSave = () => {
     if (!pattern.trim()) return;

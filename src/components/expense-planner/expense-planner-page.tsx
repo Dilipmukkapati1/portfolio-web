@@ -7,6 +7,8 @@ import { ExpensePlannerPageSkeleton } from "@/components/shared/page-skeletons";
 import { Button } from "@/components/ui/button";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useExpensePlanner } from "@/hooks/use-expense-planner";
+import { cn } from "@/lib/utils";
+import { ExpenseChatPanel } from "./expense-chat-panel";
 import {
   ExpensePlannerBottomNav,
   type ExpensePlannerTab,
@@ -54,12 +56,17 @@ export function ExpensePlannerPage() {
   const plan = <PlanTab state={state} />;
   const outlook = <OutlookTab state={state} />;
   const mappings = <MappingsTab state={state} />;
+  const chat = (
+    <ExpenseChatPanel embedded={isMobile} flush={isMobile && mobileTab === "chat"} />
+  );
 
   return (
     <div
       className={
         isMobile
-          ? "mx-auto flex min-h-[calc(100dvh-4rem)] max-w-[1080px] flex-col px-3 pb-[calc(4.5rem+env(safe-area-inset-bottom))] pt-3"
+          ? mobileTab === "chat"
+            ? "mx-auto flex h-[calc(100dvh-4rem)] max-w-[1080px] flex-col overflow-hidden px-0 pb-[calc(4.5rem+env(safe-area-inset-bottom))] pt-3"
+            : "mx-auto flex min-h-[calc(100dvh-4rem)] max-w-[1080px] flex-col px-3 pb-[calc(4.5rem+env(safe-area-inset-bottom))] pt-3"
           : "mx-auto max-w-[1080px] space-y-6 p-6"
       }
     >
@@ -74,11 +81,19 @@ export function ExpensePlannerPage() {
 
       {isMobile ? (
         <>
-          <main className="flex-1 min-h-0" role="tabpanel" aria-label={mobileTab}>
+          <main
+            className={cn(
+              "min-h-0 flex-1",
+              mobileTab === "chat" ? "flex flex-col overflow-hidden px-2" : undefined
+            )}
+            role="tabpanel"
+            aria-label={mobileTab}
+          >
             {mobileTab === "overview" && overview}
             {mobileTab === "plan" && plan}
             {mobileTab === "outlook" && outlook}
             {mobileTab === "mappings" && mappings}
+            {mobileTab === "chat" && chat}
           </main>
           <ExpensePlannerBottomNav active={mobileTab} onChange={setMobileTab} />
         </>
@@ -101,6 +116,9 @@ export function ExpensePlannerPage() {
               <h2 className="text-lg font-semibold">Mappings</h2>
               {mappings}
             </div>
+          </section>
+          <section className="col-span-full space-y-4 border-t border-border pt-6">
+            {chat}
           </section>
         </div>
       )}

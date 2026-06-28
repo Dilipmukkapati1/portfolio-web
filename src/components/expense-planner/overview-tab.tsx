@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import {
   budgetForDuration,
@@ -149,8 +150,11 @@ export function OverviewTab({
         <CardContent>
           {!hasSpendData(state.summary) ? (
             <p className="text-sm text-muted-foreground">
-              No synced transactions in this period. Connect SimpleFIN and sync from
-              Connections, then pick a range that includes your activity.
+              No synced transactions in this period. Connect SimpleFIN and sync from{" "}
+              <Link href="/accounts?tab=connections" className="text-primary underline">
+                Connections
+              </Link>
+              , then pick a range that includes your activity.
             </p>
           ) : (
           <ExpensePieChart

@@ -167,16 +167,7 @@ export function OutlookTab({ state }: { state: PlannerState }) {
             />
           </div>
         )}
-        <p className="text-xs text-muted-foreground">
-          Outlook: {outlookPeriod.label} · {outlookPeriod.monthCount} month
-          {outlookPeriod.monthCount === 1 ? "" : "s"}
-        </p>
       </div>
-
-      <p className="text-sm text-muted-foreground">
-        Expected spend extrapolates current pace (day {dayOfMonth} of {daysInMonth}) across
-        the selected outlook period.
-      </p>
 
       <div className="overflow-x-auto text-sm">
         <div className="flex w-max items-center gap-2">

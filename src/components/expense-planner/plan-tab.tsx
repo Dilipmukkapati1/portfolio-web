@@ -158,11 +158,6 @@ export function PlanTab({ state }: { state: PlannerState }) {
 
   return (
     <div className="space-y-3">
-      <p className="text-sm text-muted-foreground">
-        Set monthly take-home income and expense targets. Income and transfers
-        are tracked separately in transactions.
-      </p>
-
       <Card>
         <CardContent className="grid gap-3 pt-4 sm:grid-cols-2">
           <label className="space-y-1">

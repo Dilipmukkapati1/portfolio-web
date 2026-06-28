@@ -5,8 +5,12 @@ import type { ExpenseMappingRule } from "@portfolio/contracts";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/utils";
-import { mergeCategoryLabel } from "@/lib/expense-planner/categories";
 import { planBudgetCategories } from "@portfolio/contracts";
+import {
+  ExpenseAccountFilter,
+  expenseAccountLabel,
+} from "@/components/expense-planner/expense-account-filter";
+import { useExpenseAccounts } from "@/hooks/use-expense-accounts";
 import { MappingRuleForm } from "./mapping-rule-form";
 import { MappingRuleList } from "./mapping-rule-list";
 import { MappingTransactionsList } from "./mapping-transactions-list";
@@ -15,6 +19,8 @@ import type { useExpensePlanner } from "@/hooks/use-expense-planner";
 type PlannerState = ReturnType<typeof useExpensePlanner>;
 
 export function MappingsTab({ state }: { state: PlannerState }) {
+  const { accounts } = useExpenseAccounts();
+  const accountLabel = expenseAccountLabel(accounts, state.selectedAccountId);
   const categories = state.plan?.categories ?? [];
   const expenseCategories = planBudgetCategories(categories);
   const rules = state.plan?.mappingRules ?? [];
@@ -44,11 +50,6 @@ export function MappingsTab({ state }: { state: PlannerState }) {
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">
-        Assign a predefined mapping rule to each expense debit. This list matches
-        settled debits from Transactions (credits, transfers, and income excluded).
-      </p>
-
       {unmappedCount > 0 && (
         <div className="rounded-lg border border-yellow-500/40 bg-yellow-500/10 p-3 text-sm">
           <p className="font-medium">Needs mapping</p>
@@ -69,16 +70,27 @@ export function MappingsTab({ state }: { state: PlannerState }) {
             <CardTitle className="text-base">
               Debit transactions · Page {state.mappingPageNumber}
             </CardTitle>
-            <Button
-              type="button"
-              size="sm"
-              variant="secondary"
-              disabled={state.applyingRules || rules.length === 0}
-              onClick={() => void state.applyMappingRules()}
-            >
-              {state.applyingRules ? "Applying…" : "Apply all rules"}
-            </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              <ExpenseAccountFilter
+                accounts={accounts}
+                value={state.selectedAccountId}
+                onChange={state.setSelectedAccountId}
+                disabled={state.mappingPageLoading || state.refreshing}
+              />
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                disabled={state.applyingRules || rules.length === 0}
+                onClick={() => void state.applyMappingRules()}
+              >
+                {state.applyingRules ? "Applying…" : "Apply all rules"}
+              </Button>
+            </div>
           </div>
+          {accountLabel && (
+            <p className="text-xs text-muted-foreground">Showing: {accountLabel}</p>
+          )}
         </CardHeader>
         <CardContent>
           <MappingTransactionsList

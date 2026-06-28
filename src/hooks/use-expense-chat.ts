@@ -22,6 +22,7 @@ export function useExpenseChat() {
   const [timeRange, setTimeRange] = useState<ExpenseChatTimeRange>(() =>
     defaultExpenseChatTimeRange()
   );
+  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
   const [rangeNotice, setRangeNotice] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -56,6 +57,7 @@ export function useExpenseChat() {
         const res = await api.expenseChat({
           message: trimmed,
           history,
+          ...(selectedAccountId ? { accountId: selectedAccountId } : {}),
         });
         setMessages((prev) => [...prev, res.message]);
         setTimeRange(res.timeRange);
@@ -67,7 +69,7 @@ export function useExpenseChat() {
         setSending(false);
       }
     },
-    [isUnlocked, messages, showUnlockDialog]
+    [isUnlocked, messages, selectedAccountId, showUnlockDialog]
   );
 
   const clearChat = useCallback(() => {
@@ -80,6 +82,8 @@ export function useExpenseChat() {
   return {
     messages,
     timeRange,
+    selectedAccountId,
+    setSelectedAccountId,
     rangeNotice,
     sending,
     error,

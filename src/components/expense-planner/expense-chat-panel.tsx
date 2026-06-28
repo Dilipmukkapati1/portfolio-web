@@ -2,9 +2,14 @@
 
 import { AdvisorInput } from "@/components/advisor/advisor-input";
 import { ExpenseChatBlocks } from "@/components/expense-planner/expense-chat-blocks";
+import {
+  ExpenseAccountFilter,
+  expenseAccountLabel,
+} from "@/components/expense-planner/expense-account-filter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useExpenseChat } from "@/hooks/use-expense-chat";
+import { useExpenseAccounts } from "@/hooks/use-expense-accounts";
 import { cn } from "@/lib/utils";
 
 function ChatBubble({
@@ -49,6 +54,8 @@ export function ExpenseChatPanel({
   flush?: boolean;
 }) {
   const chat = useExpenseChat();
+  const { accounts } = useExpenseAccounts();
+  const accountLabel = expenseAccountLabel(accounts, chat.selectedAccountId);
   const insetX = flush ? "px-2" : "px-3";
 
   const messageArea = (
@@ -97,9 +104,23 @@ export function ExpenseChatPanel({
           {chat.rangeNotice}
         </p>
       )}
-      <p className="mb-2 text-xs text-muted-foreground">
-        Range: {chat.timeRange.label}
-      </p>
+      <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-2">
+        <p className="text-xs text-muted-foreground">
+          Range: {chat.timeRange.label}
+        </p>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-muted-foreground">Account</span>
+          <ExpenseAccountFilter
+            accounts={accounts}
+            value={chat.selectedAccountId}
+            onChange={chat.setSelectedAccountId}
+            disabled={chat.sending}
+          />
+        </div>
+        {accountLabel && (
+          <p className="text-xs text-muted-foreground">Filtered: {accountLabel}</p>
+        )}
+      </div>
       {chat.error && (
         <p className="mb-2 text-xs text-destructive" role="alert">
           {chat.error}

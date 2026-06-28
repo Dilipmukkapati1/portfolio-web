@@ -14,6 +14,7 @@ import { api } from "@/lib/api";
 import { usePrivacy } from "@/components/PrivacyProvider";
 import {
   fetchExpenseDebitsPage,
+  MAPPING_PAGE_SIZE,
   type ExpenseDebitsPage,
 } from "@/lib/expense-planner/fetch-expense-debits";
 import type { DurationPreset } from "@/lib/expense-planner/date-ranges";
@@ -74,6 +75,7 @@ export function useExpensePlanner() {
     return toIsoDate(d);
   });
   const [customEnd, setCustomEnd] = useState(() => toIsoDate(new Date()));
+  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
 
   const pendingSave = useRef<UpsertExpensePlanRequest | null>(null);
   const userEdited = useRef(false);
@@ -84,20 +86,26 @@ export function useExpensePlanner() {
       ? "Date range cannot exceed 366 days"
       : null;
 
-  const fetchMappingPage = useCallback(async (cursor?: string) => {
-    return fetchExpenseDebitsPage(cursor);
-  }, []);
+  const fetchMappingPage = useCallback(
+    async (cursor?: string, accountId?: string | null) => {
+      return fetchExpenseDebitsPage(cursor, MAPPING_PAGE_SIZE, accountId);
+    },
+    []
+  );
 
-  const resetMappingPages = useCallback(async () => {
-    const firstPage = await fetchMappingPage(undefined);
-    mappingPageCursorsRef.current = [undefined];
-    if (firstPage.nextCursor) {
-      mappingPageCursorsRef.current[1] = firstPage.nextCursor;
-    }
-    setMappingPages([firstPage]);
-    setMappingPageIndex(0);
-    mappingPageIndexRef.current = 0;
-  }, [fetchMappingPage]);
+  const resetMappingPages = useCallback(
+    async (accountId?: string | null) => {
+      const firstPage = await fetchMappingPage(undefined, accountId);
+      mappingPageCursorsRef.current = [undefined];
+      if (firstPage.nextCursor) {
+        mappingPageCursorsRef.current[1] = firstPage.nextCursor;
+      }
+      setMappingPages([firstPage]);
+      setMappingPageIndex(0);
+      mappingPageIndexRef.current = 0;
+    },
+    [fetchMappingPage]
+  );
 
   const goToMappingPage = useCallback(
     async (targetIndex: number) => {
@@ -115,7 +123,7 @@ export function useExpensePlanner() {
 
       setMappingPageLoading(true);
       try {
-        const nextPage = await fetchMappingPage(cursor);
+        const nextPage = await fetchMappingPage(cursor, selectedAccountId);
         setMappingPages((prev) => {
           const copy = [...prev];
           copy[targetIndex] = nextPage;
@@ -130,27 +138,31 @@ export function useExpensePlanner() {
         setMappingPageLoading(false);
       }
     },
-    [fetchMappingPage, mappingPageLoading, mappingPages]
+    [fetchMappingPage, mappingPageLoading, mappingPages, selectedAccountId]
   );
 
-  const loadUnmapped = useCallback(async (startDate: string, endDate: string) => {
-    const collected: Transaction[] = [];
-    let cursor: string | undefined;
-    for (let page = 0; page < 20; page += 1) {
-      const res = await api.getTransactions({
-        startDate,
-        endDate,
-        category: "uncategorized",
-        expenseDebitsOnly: "true",
-        limit: "500",
-        ...(cursor ? { cursor } : {}),
-      });
-      collected.push(...(res.transactions as Transaction[]));
-      if (!res.hasMore || !res.nextCursor) break;
-      cursor = res.nextCursor;
-    }
-    setUnmappedTransactions(collected);
-  }, []);
+  const loadUnmapped = useCallback(
+    async (startDate: string, endDate: string, accountId?: string | null) => {
+      const collected: Transaction[] = [];
+      let cursor: string | undefined;
+      for (let page = 0; page < 20; page += 1) {
+        const res = await api.getTransactions({
+          startDate,
+          endDate,
+          category: "uncategorized",
+          expenseDebitsOnly: "true",
+          limit: "500",
+          ...(accountId ? { accountId } : {}),
+          ...(cursor ? { cursor } : {}),
+        });
+        collected.push(...(res.transactions as Transaction[]));
+        if (!res.hasMore || !res.nextCursor) break;
+        cursor = res.nextCursor;
+      }
+      setUnmappedTransactions(collected);
+    },
+    []
+  );
 
   const refetch = useCallback(async (options?: { background?: boolean }) => {
     const background = Boolean(options?.background && hasLoaded.current);
@@ -194,8 +206,12 @@ export function useExpensePlanner() {
       setPlan(normalizeExpensePlan(planRes.plan));
       setSummary(summaryRes);
       setCurrentMonthSummary(monthRes);
-      await loadUnmapped(currentRange.startDate, currentRange.endDate);
-      await resetMappingPages();
+      await loadUnmapped(
+        currentRange.startDate,
+        currentRange.endDate,
+        selectedAccountId
+      );
+      await resetMappingPages(selectedAccountId);
       userEdited.current = false;
       hasLoaded.current = true;
     } catch (err) {
@@ -207,11 +223,30 @@ export function useExpensePlanner() {
         setLoading(false);
       }
     }
-  }, [customEnd, customStart, duration, loadUnmapped, resetMappingPages]);
+  }, [
+    customEnd,
+    customStart,
+    duration,
+    loadUnmapped,
+    resetMappingPages,
+    selectedAccountId,
+  ]);
 
   useEffect(() => {
     void refetch({ background: hasLoaded.current });
   }, [refetch, privacyVersion]);
+
+  useEffect(() => {
+    if (!hasLoaded.current) return;
+    const currentRange = durationRange(duration, customStart, customEnd);
+    void loadUnmapped(
+      currentRange.startDate,
+      currentRange.endDate,
+      selectedAccountId
+    );
+    void resetMappingPages(selectedAccountId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- account filter only
+  }, [selectedAccountId]);
 
   const savePlan = useCallback(async (payload: UpsertExpensePlanRequest) => {
     setSaving(true);
@@ -349,6 +384,8 @@ export function useExpensePlanner() {
     setCustomEnd,
     range,
     rangeError,
+    selectedAccountId,
+    setSelectedAccountId,
     valuesUnlocked: isUnlocked && summary?.valuesUnlocked !== false,
     refetch,
     updateCategories,

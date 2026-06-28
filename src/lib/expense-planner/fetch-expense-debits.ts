@@ -12,11 +12,13 @@ export type ExpenseDebitsPage = {
 
 export async function fetchExpenseDebitsPage(
   cursor?: string,
-  limit = MAPPING_PAGE_SIZE
+  limit = MAPPING_PAGE_SIZE,
+  accountId?: string | null
 ): Promise<ExpenseDebitsPage> {
   const res = await api.getTransactions({
     expenseDebitsOnly: "true",
     limit: String(limit),
+    ...(accountId ? { accountId } : {}),
     ...(cursor ? { cursor } : {}),
   });
 

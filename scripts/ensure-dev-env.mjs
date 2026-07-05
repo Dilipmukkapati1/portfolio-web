@@ -24,5 +24,5 @@ fs.copyFileSync(template, envLocal);
 console.log(
   "[portfolio-web] Created .env.local from env/azure-dev.env.example (auth only).\n" +
     "  npm run dev        → Azure dev API\n" +
-    "  npm run dev:local  → local portfolio-api on :7071"
+    "  npm run start:local  → local portfolio-api on :7071"
 );

@@ -63,7 +63,7 @@ async function warnIfLocalApiDown() {
     console.warn(
       "[portfolio-web] portfolio-api is not reachable on localhost:7071.\n" +
         "  Start it: cd ../portfolio-api && npm start\n" +
-        "  Or use Azure dev API: npm run dev:azure"
+        "  Or use Azure dev API: npm run start:dev"
     );
   }
 }
@@ -88,6 +88,26 @@ function buildContracts() {
     console.error("[portfolio-web] Failed to build @portfolio/contracts.");
     process.exit(result.status ?? 1);
   }
+  syncContractsCopy(contractsRoot);
+}
+
+// @portfolio/contracts is a file: dependency, so npm *copies* it into
+// node_modules. Rebuilding the source dist above does not refresh that copy,
+// and Next.js does not watch node_modules — so webpack keeps bundling the
+// stale copy until it is replaced. Mirror the freshly built dist into the
+// installed copy so dev always picks up current contracts.
+function syncContractsCopy(contractsRoot) {
+  const srcDist = path.join(contractsRoot, "dist");
+  const destPkg = path.join(root, "node_modules", "@portfolio", "contracts");
+  const destDist = path.join(destPkg, "dist");
+  if (!fs.existsSync(srcDist) || !fs.existsSync(destPkg)) return;
+  fs.rmSync(destDist, { recursive: true, force: true });
+  fs.cpSync(srcDist, destDist, { recursive: true });
+  fs.cpSync(
+    path.join(contractsRoot, "package.json"),
+    path.join(destPkg, "package.json")
+  );
+  console.log("[portfolio-web] Synced @portfolio/contracts into node_modules.");
 }
 
 async function main() {

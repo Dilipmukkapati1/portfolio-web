@@ -9,10 +9,10 @@ Pick an API target:
 | Command | API | Household |
 | ------- | --- | --------- |
 | `npm run dev` | Azure dev (`ppm-dev-func-*.azurewebsites.net`) | `dev-household` |
-| `npm run dev:local` | Local (`localhost:7071`) | `dev-household` (shared Azure Cosmos dev) |
+| `npm run start:local` | Local (`localhost:7071`) | `dev-household` (shared Azure Cosmos dev) |
 
 `npm run dev` is the default for UI work — no local Function App required.  
-`npm run dev:local` requires portfolio-api running (`cd ../portfolio-api && npm start`).
+`npm run start:local` requires portfolio-api running (`cd ../portfolio-api && npm start`).
 
 Both commands pin the web app to **port 3000** (required for Azure dev CORS).
 
@@ -22,7 +22,7 @@ On first run, `predev` creates `.env.local` from `env/azure-dev.env.example` wit
 npm install
 npm run dev          # Azure dev API
 # or
-npm run dev:local    # local portfolio-api
+npm run start:local    # local portfolio-api
 ```
 
 Sign in at http://localhost:3000 with **admin** / **portfolio** (or values from `.env.local`).

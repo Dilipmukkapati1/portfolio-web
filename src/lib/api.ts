@@ -329,4 +329,9 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ txnId, category }),
     }),
+  postExpenseChat: (body: import("@portfolio/contracts").ExpenseChatRequest) =>
+    apiFetch<import("@portfolio/contracts").ExpenseChatResponse>(
+      "/expense-plan/chat",
+      { method: "POST", body: JSON.stringify(body) }
+    ),
 };

@@ -5,12 +5,14 @@ import { Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { ExpensePlannerPageSkeleton } from "@/components/shared/page-skeletons";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useExpensePlanner } from "@/hooks/use-expense-planner";
 import {
   ExpensePlannerBottomNav,
   type ExpensePlannerTab,
 } from "./expense-planner-bottom-nav";
+import { ChatTab } from "./chat-tab";
 import { ExpensePlannerHeader } from "./expense-planner-header";
 import { MappingsTab } from "./mappings-tab";
 import { OutlookTab } from "./outlook-tab";
@@ -83,26 +85,30 @@ export function ExpensePlannerPage() {
           <ExpensePlannerBottomNav active={mobileTab} onChange={setMobileTab} />
         </>
       ) : (
-        <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
-          <section className="space-y-4">
-            <h2 className="text-lg font-semibold">Overview</h2>
+        <Tabs defaultValue="overview" className="w-full">
+          <TabsList className="grid w-full grid-cols-5">
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="plan">Plan</TabsTrigger>
+            <TabsTrigger value="outlook">Outlook</TabsTrigger>
+            <TabsTrigger value="mappings">Mappings</TabsTrigger>
+            <TabsTrigger value="chat">Chat</TabsTrigger>
+          </TabsList>
+          <TabsContent value="overview" className="mt-6">
             {overview}
-          </section>
-          <section className="space-y-8">
-            <div className="space-y-4">
-              <h2 className="text-lg font-semibold">Plan</h2>
-              {plan}
-            </div>
-            <div className="space-y-4 border-t border-border pt-6">
-              <h2 className="text-lg font-semibold">Outlook</h2>
-              {outlook}
-            </div>
-            <div className="space-y-4 border-t border-border pt-6">
-              <h2 className="text-lg font-semibold">Mappings</h2>
-              {mappings}
-            </div>
-          </section>
-        </div>
+          </TabsContent>
+          <TabsContent value="plan" className="mt-6">
+            {plan}
+          </TabsContent>
+          <TabsContent value="outlook" className="mt-6">
+            {outlook}
+          </TabsContent>
+          <TabsContent value="mappings" className="mt-6">
+            {mappings}
+          </TabsContent>
+          <TabsContent value="chat" className="mt-6">
+            <ChatTab state={state} />
+          </TabsContent>
+        </Tabs>
       )}
     </div>
   );

@@ -13,6 +13,7 @@ concurrency:
 
 env:
   CHECKOUT_REF: ${{ github.event_name == 'repository_dispatch' && github.event.client_payload.ref || github.ref }}
+  LIB_REF: main
 
 jobs:
   deploy:
@@ -21,14 +22,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          path: portfolio-web
           ref: ${{ env.CHECKOUT_REF }}
+
+      - uses: actions/checkout@v4
+        with:
+          repository: Dilipmukkapati1/portfolio-contracts
+          path: portfolio-contracts
+          ref: ${{ env.LIB_REF }}
 
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
-          cache: npm
 
       - name: Build for Azure dev
+        working-directory: portfolio-web
         env:
           FUNCTION_APP_BASE_URL: ${{ vars.FUNCTION_APP_BASE_URL }}
           DEV_FUNCTION_APP_URL: ${{ vars.DEV_FUNCTION_APP_URL }}
@@ -42,8 +50,10 @@ jobs:
             echo "::error::Dev deploy must not target prod Function App ($NEXT_PUBLIC_API_URL)"
             exit 1
           fi
-          npm ci
-          npm run build
+          # Build the file: contracts dependency before installing the web app
+          # so npm ci copies its freshly built dist.
+          cd ../portfolio-contracts && npm ci && npm run build
+          cd ../portfolio-web && npm ci && npm run build
           test -d .next/standalone
 
       - name: Deploy Static Web App
@@ -52,7 +62,7 @@ jobs:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: upload
-          app_location: /
+          app_location: portfolio-web
           api_location: ""
           output_location: ""
           skip_app_build: true

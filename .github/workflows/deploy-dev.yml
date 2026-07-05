@@ -1,12 +1,14 @@
-name: Deploy prod
+name: Deploy dev
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
   repository_dispatch:
-    types: [deploy-prod]
+    types: [deploy-dev]
 
 concurrency:
-  group: deploy-prod-web
+  group: deploy-dev-web
   cancel-in-progress: true
 
 env:
@@ -15,7 +17,7 @@ env:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    environment: prod
+    environment: dev
     steps:
       - uses: actions/checkout@v4
         with:
@@ -26,17 +28,18 @@ jobs:
           node-version: "20"
           cache: npm
 
-      - name: Build for Azure prod
+      - name: Build for Azure dev
         env:
           FUNCTION_APP_BASE_URL: ${{ vars.FUNCTION_APP_BASE_URL }}
+          DEV_FUNCTION_APP_URL: ${{ vars.DEV_FUNCTION_APP_URL }}
         run: |
-          api_base="${FUNCTION_APP_BASE_URL:-https://ppm-prod-func-x32hrp.azurewebsites.net}"
+          api_base="${FUNCTION_APP_BASE_URL:-${DEV_FUNCTION_APP_URL:-https://ppm-dev-func-x32hrp.azurewebsites.net}}"
           export NEXT_PUBLIC_API_URL="${api_base%/}/api"
-          export NEXT_PUBLIC_APP_ENV=production
-          export NEXT_PUBLIC_DEFAULT_HOUSEHOLD_ID=prod-household
+          export NEXT_PUBLIC_APP_ENV=development
+          export NEXT_PUBLIC_DEFAULT_HOUSEHOLD_ID=dev-household
           echo "NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}"
-          if echo "$NEXT_PUBLIC_API_URL" | grep -q "ppm-dev-func"; then
-            echo "::error::Prod deploy must not target dev Function App ($NEXT_PUBLIC_API_URL)"
+          if echo "$NEXT_PUBLIC_API_URL" | grep -q "ppm-prod-func"; then
+            echo "::error::Dev deploy must not target prod Function App ($NEXT_PUBLIC_API_URL)"
             exit 1
           fi
           npm ci

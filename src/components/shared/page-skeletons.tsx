@@ -440,35 +440,58 @@ export function TransactionsPageSkeleton() {
   );
 }
 
+function TaxPanelSkeleton({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="overflow-hidden rounded-lg border border-border bg-card">
+      {children}
+    </div>
+  );
+}
+
 export function TaxPageSkeleton() {
   return (
-    <div className="max-w-2xl space-y-6">
-      <PageHeaderSkeleton />
-      <Card>
-        <CardHeader>
-          <Skeleton className="h-5 w-48" />
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Skeleton className="h-11 w-full sm:w-52" />
-          <DefinitionListSkeleton pairs={3} />
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader>
-          <Skeleton className="h-5 w-36" />
-        </CardHeader>
-        <CardContent className="space-y-2">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <div
-              key={i}
-              className="flex flex-col gap-2 rounded-md border border-border px-3 py-2 sm:flex-row sm:justify-between"
-            >
-              <Skeleton className="h-4 w-40" />
-              <Skeleton className="h-4 w-48" />
-            </div>
-          ))}
-        </CardContent>
-      </Card>
+    <div className="flex w-full min-w-0 flex-col gap-3 sm:gap-6">
+      <div className="mb-2 flex shrink-0 items-center justify-between gap-2 px-2 sm:mb-0 sm:px-0">
+        <Skeleton className="h-7 w-10 sm:h-9 sm:w-16" />
+        <div className="flex shrink-0 items-center gap-2">
+          <Skeleton className="h-9 w-[88px]" />
+          <Skeleton className="h-9 w-9" />
+        </div>
+      </div>
+
+      <div className="hidden gap-2 sm:flex">
+        <Skeleton className="h-9 w-24" />
+        <Skeleton className="h-9 w-20" />
+        <Skeleton className="h-9 w-24" />
+      </div>
+
+      <TaxPanelSkeleton>
+        <div className="px-2 py-2.5">
+          <Skeleton className="h-10 w-full min-w-0" />
+        </div>
+      </TaxPanelSkeleton>
+
+      <TaxPanelSkeleton>
+        <div className="space-y-3 px-2 py-3">
+          <div className="space-y-1.5">
+            <Skeleton className="h-3 w-16" />
+            <Skeleton className="h-9 w-full min-w-0" />
+          </div>
+          <Skeleton className="h-9 w-full min-w-0" />
+          <div className="grid grid-cols-2 gap-2 sm:gap-3">
+            <Skeleton className="h-14 w-full min-w-0" />
+            <Skeleton className="h-14 w-full min-w-0" />
+          </div>
+          <div className="divide-y divide-border border-t border-border">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="flex items-center justify-between gap-2 py-2.5">
+                <Skeleton className="h-4 w-24 min-w-0 flex-1" />
+                <Skeleton className="h-4 w-16 shrink-0" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </TaxPanelSkeleton>
     </div>
   );
 }

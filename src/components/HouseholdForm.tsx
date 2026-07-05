@@ -28,6 +28,7 @@ export type HouseholdFormValues = {
   persona: string;
   filingStatus: string;
   defaultTaxYear: number;
+  liquidCashSnapshot?: number;
   members: MemberDraft[];
 };
 
@@ -38,6 +39,7 @@ export const defaultHouseholdFormValues: HouseholdFormValues = {
   persona: "w2_employee",
   filingStatus: "single",
   defaultTaxYear: new Date().getFullYear(),
+  liquidCashSnapshot: undefined,
   members: [
     {
       id: newLocalId(),
@@ -60,8 +62,8 @@ export function memberToDraft(m: Member): MemberDraft {
     name: m.name,
     relationship: m.relationship,
     isActive: m.isActive,
-    incomeSources: m.incomeSources,
-    contributions: m.contributions,
+    incomeSources: m.incomeSources ?? [],
+    contributions: m.contributions ?? [],
   };
 }
 
@@ -82,6 +84,7 @@ export function householdToFormValues(
     filingStatus:
       taxProfile?.filingStatus ?? household.filingStatus ?? "single",
     defaultTaxYear: year,
+    liquidCashSnapshot: household.liquidCashSnapshot,
     members:
       members.length > 0
         ? members.map(memberToDraft)
@@ -236,6 +239,29 @@ export function HouseholdForm({
                 </option>
               ))}
             </select>
+          </label>
+          <label className="block text-sm">
+            Liquid cash (planning)
+            <input
+              type="number"
+              min={0}
+              step={1000}
+              className="mt-1 w-full rounded-md border border-border bg-muted px-3 py-2 min-h-11"
+              value={values.liquidCashSnapshot ?? ""}
+              placeholder="Optional"
+              onChange={(e) =>
+                setValues((v) => ({
+                  ...v,
+                  liquidCashSnapshot:
+                    e.target.value === ""
+                      ? undefined
+                      : parseFloat(e.target.value) || 0,
+                }))
+              }
+            />
+            <span className="mt-1 block text-xs text-muted-foreground">
+              Cash/savings balance for planning — not counted as taxable income.
+            </span>
           </label>
         </div>
 

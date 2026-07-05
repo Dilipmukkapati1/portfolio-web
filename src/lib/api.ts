@@ -329,9 +329,45 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ txnId, category }),
     }),
-  postExpenseChat: (body: import("@portfolio/contracts").ExpenseChatRequest) =>
-    apiFetch<import("@portfolio/contracts").ExpenseChatResponse>(
-      "/expense-plan/chat",
-      { method: "POST", body: JSON.stringify(body) }
+  listAdvisorConversations: () =>
+    apiFetch<{ conversations: import("@portfolio/contracts").AdvisorConversationSummary[] }>(
+      "/advisor/conversations"
     ),
+  getAdvisorConversation: (conversationId: string) =>
+    apiFetch<{ conversation: import("@portfolio/contracts").AdvisorConversation }>(
+      `/advisor/conversations/${encodeURIComponent(conversationId)}`
+    ),
+  deleteAdvisorConversation: (conversationId: string) =>
+    apiFetch<{ deleted: boolean }>(
+      `/advisor/conversations/${encodeURIComponent(conversationId)}`,
+      { method: "DELETE" }
+    ),
+  advisorChat: (body: import("@portfolio/contracts").AdvisorChatRequest) =>
+    apiFetch<import("@portfolio/contracts").AdvisorChatResponse & {
+      privacyMode?: "locked" | "unlocked";
+      valuesUnlocked?: boolean;
+    }>("/advisor/chat", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  householdProfileChat: (body: import("@portfolio/contracts").HouseholdProfileChatRequest) =>
+    apiFetch<
+      import("@portfolio/contracts").HouseholdProfileChatResponse & {
+        privacyMode?: "locked" | "unlocked";
+        valuesUnlocked?: boolean;
+      }
+    >("/household/profile-chat", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  expenseChat: (body: import("@portfolio/contracts").ExpenseChatRequest) =>
+    apiFetch<
+      import("@portfolio/contracts").ExpenseChatResponse & {
+        privacyMode?: "locked" | "unlocked";
+        valuesUnlocked?: boolean;
+      }
+    >("/expense-plan/chat", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
 };

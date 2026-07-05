@@ -1,13 +1,14 @@
 "use client";
 
+import { Suspense, useMemo } from "react";
 import { motion } from "framer-motion";
-import { useMemo, useState } from "react";
 import { PageHeaderControls } from "./page-header-controls";
 import { AllocationDonut } from "./allocation-donut";
 import { PortfolioOutlook } from "./portfolio-outlook";
 import { PlanExecutionOutlookSummary } from "./plan-execution-outlook";
 import { InstrumentExplorer } from "./instrument-explorer";
 import { HoldingsList } from "./holdings-list";
+import { PlanFeesSummary } from "./plan-fees-summary";
 import {
   InvestmentPlanBottomNav,
   type InvestmentPlanTab,
@@ -19,13 +20,19 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { formatCompactCurrency } from "@/lib/investment-plan/format";
 import { useIsMobile } from "@/hooks/use-is-mobile";
+import { useQueryTab } from "@/hooks/use-query-tab";
+import { parseInvestmentPlanTab } from "@/lib/url-state";
 import { cn, formatPercent } from "@/lib/utils";
 import type { DisplayUnit } from "@portfolio/contracts";
 
-export function InvestmentPlanPage() {
+function InvestmentPlanPageContent() {
   const state = useInvestmentPlan();
   const isMobile = useIsMobile();
-  const [mobileTab, setMobileTab] = useState<InvestmentPlanTab>("allocation");
+  const [activeTab, setActiveTab] = useQueryTab<InvestmentPlanTab>({
+    pathname: "/financial-plan",
+    parse: parseInvestmentPlanTab,
+    defaultTab: "allocation",
+  });
 
   const saveStatus = useMemo(() => {
     if (state.saveError) return "error" as const;
@@ -66,21 +73,24 @@ export function InvestmentPlanPage() {
   const instruments = state.plan?.instruments ?? [];
 
   const allocationContent = (
-    <AllocationDonut
-      classes={state.allocation}
-      displayUnit={state.displayUnit}
-      netWorth={summary.netWorth}
-      valuesUnlocked={state.valuesUnlocked}
-      plannedTotalPercent={summary.plannedTotalPercent}
-      actualTotalDollars={state.actualTotalDollars}
-    />
+    <div className="space-y-4">
+      <AllocationDonut
+        classes={state.allocation}
+        displayUnit={state.displayUnit}
+        netWorth={summary.netWorth}
+        valuesUnlocked={state.valuesUnlocked}
+        plannedTotalPercent={summary.plannedTotalPercent}
+        actualTotalDollars={state.actualTotalDollars}
+      />
+      <PlanFeesSummary fees={state.aggregatedPlanFees} />
+    </div>
   );
 
   const executionOutlookSummary = (
     <PlanExecutionOutlookSummary
       executionOutlook={state.executionOutlook}
       valuesUnlocked={state.valuesUnlocked}
-      compact={isMobile && mobileTab === "plan"}
+      compact={isMobile && activeTab === "plan"}
     />
   );
 
@@ -114,6 +124,7 @@ export function InvestmentPlanPage() {
     instrumentCount: summary.instrumentCount,
     unallocatedDollars: summary.unallocatedDollars,
     unallocatedPercent: summary.unallocatedPercent,
+    aggregatedPlanFees: state.aggregatedPlanFees,
     projectionRate: state.projectionRate,
     onProjectionRateChange: state.setProjectionRate,
     reinvestDividends: state.reinvestDividends,
@@ -224,12 +235,12 @@ export function InvestmentPlanPage() {
 
       {isMobile ? (
         <>
-          <div role="tabpanel" aria-label={mobileTab}>
-            {mobileTab === "allocation" && allocationCard}
-            {mobileTab === "plan" && planByInstrumentCard}
-            {mobileTab === "outlook" && portfolioOutlookCard}
+          <div role="tabpanel" aria-label={activeTab}>
+            {activeTab === "allocation" && allocationCard}
+            {activeTab === "plan" && planByInstrumentCard}
+            {activeTab === "outlook" && portfolioOutlookCard}
           </div>
-          <InvestmentPlanBottomNav active={mobileTab} onChange={setMobileTab} />
+          <InvestmentPlanBottomNav active={activeTab} onChange={setActiveTab} />
         </>
       ) : (
         <div className="grid grid-cols-2 items-start gap-6">
@@ -241,6 +252,20 @@ export function InvestmentPlanPage() {
         </div>
       )}
     </motion.div>
+  );
+}
+
+export function InvestmentPlanPage() {
+  return (
+    <Suspense
+      fallback={
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
+          <InvestmentPlanPageSkeleton />
+        </motion.div>
+      }
+    >
+      <InvestmentPlanPageContent />
+    </Suspense>
   );
 }
 

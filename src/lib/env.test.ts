@@ -17,6 +17,7 @@ describe("getWebEnv", () => {
     process.env.NEXT_PUBLIC_APP_ENV = "local";
     expect(getWebEnv().appEnv).toBe("local");
     expect(getWebEnv().apiUrl).toBe("http://localhost:7071/api");
+    expect(getWebEnv().defaultHouseholdId).toBe("dev-household");
   });
 
   it("uses NEXT_PUBLIC_API_URL when set", () => {

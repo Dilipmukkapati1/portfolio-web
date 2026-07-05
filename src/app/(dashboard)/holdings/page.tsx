@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { motion } from "framer-motion";
 import { AllocationView } from "@/components/holdings/allocation-view";
@@ -38,10 +38,8 @@ import {
   type SymbolAggregate,
 } from "@/lib/holdings";
 import { formatCurrency, formatPercent } from "@/lib/utils";
-
-type GroupMode = "account" | "symbol" | "category";
-type ViewMode = "holdings" | "allocation";
-type ChartStyle = "pie" | "table";
+import { useHoldingsQueryParams } from "@/hooks/use-query-params";
+import type { HoldingsGroupMode, HoldingsViewMode } from "@/lib/url-state";
 
 function HoldingRow({
   holding,
@@ -210,14 +208,27 @@ function SymbolAggregateRow({
 }
 
 export default function HoldingsPage() {
+  return (
+    <Suspense
+      fallback={
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
+          <HoldingsPageSkeleton />
+        </motion.div>
+      }
+    >
+      <HoldingsPageContent />
+    </Suspense>
+  );
+}
+
+function HoldingsPageContent() {
   const { isUnlocked, privacyVersion } = usePrivacy();
+  const { view: viewMode, group: groupMode, chart: chartStyle, setView, setGroup, setChart } =
+    useHoldingsQueryParams();
   const [holdings, setHoldings] = useState<HoldingRecord[]>([]);
   const [accounts, setAccounts] = useState<AccountRecord[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
-  const [groupMode, setGroupMode] = useState<GroupMode>("category");
-  const [viewMode, setViewMode] = useState<ViewMode>("allocation");
-  const [chartStyle, setChartStyle] = useState<ChartStyle>("pie");
   const [expandedSymbols, setExpandedSymbols] = useState<Set<string>>(
     new Set()
   );
@@ -379,7 +390,7 @@ export default function HoldingsPage() {
     <div className="flex flex-col gap-3 sm:items-end">
       <Tabs
         value={groupMode}
-        onValueChange={(value) => setGroupMode(value as GroupMode)}
+        onValueChange={(value) => setGroup(value as HoldingsGroupMode)}
       >
         <TabsList>
           <TabsTrigger value="account">By account</TabsTrigger>
@@ -390,7 +401,7 @@ export default function HoldingsPage() {
       <div className="flex flex-wrap items-center gap-2">
         <Tabs
           value={viewMode}
-          onValueChange={(value) => setViewMode(value as ViewMode)}
+          onValueChange={(value) => setView(value as HoldingsViewMode)}
         >
           <TabsList>
             <TabsTrigger value="holdings">Holdings</TabsTrigger>
@@ -403,7 +414,7 @@ export default function HoldingsPage() {
               type="button"
               size="sm"
               variant={chartStyle === "pie" ? "secondary" : "ghost"}
-              onClick={() => setChartStyle("pie")}
+              onClick={() => setChart("pie")}
             >
               Pie
             </Button>
@@ -411,7 +422,7 @@ export default function HoldingsPage() {
               type="button"
               size="sm"
               variant={chartStyle === "table" ? "secondary" : "ghost"}
-              onClick={() => setChartStyle("table")}
+              onClick={() => setChart("table")}
             >
               Table
             </Button>

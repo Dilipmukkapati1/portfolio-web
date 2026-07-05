@@ -1,28 +1,35 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense } from "react";
 import { Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { ExpensePlannerPageSkeleton } from "@/components/shared/page-skeletons";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useIsMobile } from "@/hooks/use-is-mobile";
+import { useQueryTab } from "@/hooks/use-query-tab";
 import { useExpensePlanner } from "@/hooks/use-expense-planner";
+import { parseExpensePlannerTab } from "@/lib/url-state";
+import { cn } from "@/lib/utils";
+import { ExpenseChatPanel } from "./expense-chat-panel";
 import {
   ExpensePlannerBottomNav,
   type ExpensePlannerTab,
 } from "./expense-planner-bottom-nav";
-import { ChatTab } from "./chat-tab";
 import { ExpensePlannerHeader } from "./expense-planner-header";
 import { MappingsTab } from "./mappings-tab";
 import { OutlookTab } from "./outlook-tab";
 import { OverviewTab } from "./overview-tab";
 import { PlanTab } from "./plan-tab";
 
-export function ExpensePlannerPage() {
+function ExpensePlannerPageContent() {
   const state = useExpensePlanner();
   const isMobile = useIsMobile();
-  const [mobileTab, setMobileTab] = useState<ExpensePlannerTab>("overview");
+  const [activeTab, setActiveTab] = useQueryTab<ExpensePlannerTab>({
+    pathname: "/expense-planner",
+    parse: parseExpensePlannerTab,
+    defaultTab: "overview",
+  });
 
   if (state.loading && !state.plan) {
     return (
@@ -56,12 +63,17 @@ export function ExpensePlannerPage() {
   const plan = <PlanTab state={state} />;
   const outlook = <OutlookTab state={state} />;
   const mappings = <MappingsTab state={state} />;
+  const chat = (
+    <ExpenseChatPanel embedded={isMobile} flush={isMobile && activeTab === "chat"} />
+  );
 
   return (
     <div
       className={
         isMobile
-          ? "mx-auto flex min-h-[calc(100dvh-4rem)] max-w-[1080px] flex-col px-3 pb-[calc(4.5rem+env(safe-area-inset-bottom))] pt-3"
+          ? activeTab === "chat"
+            ? "mx-auto flex h-[calc(100dvh-4rem)] max-w-[1080px] flex-col overflow-hidden px-0 pb-[calc(4.5rem+env(safe-area-inset-bottom))] pt-3"
+            : "mx-auto flex min-h-[calc(100dvh-4rem)] max-w-[1080px] flex-col px-3 pb-[calc(4.5rem+env(safe-area-inset-bottom))] pt-3"
           : "mx-auto max-w-[1080px] space-y-6 p-6"
       }
     >
@@ -76,16 +88,28 @@ export function ExpensePlannerPage() {
 
       {isMobile ? (
         <>
-          <main className="flex-1 min-h-0" role="tabpanel" aria-label={mobileTab}>
-            {mobileTab === "overview" && overview}
-            {mobileTab === "plan" && plan}
-            {mobileTab === "outlook" && outlook}
-            {mobileTab === "mappings" && mappings}
+          <main
+            className={cn(
+              "min-h-0 flex-1",
+              activeTab === "chat" ? "flex flex-col overflow-hidden px-2" : undefined
+            )}
+            role="tabpanel"
+            aria-label={activeTab}
+          >
+            {activeTab === "overview" && overview}
+            {activeTab === "plan" && plan}
+            {activeTab === "outlook" && outlook}
+            {activeTab === "mappings" && mappings}
+            {activeTab === "chat" && chat}
           </main>
-          <ExpensePlannerBottomNav active={mobileTab} onChange={setMobileTab} />
+          <ExpensePlannerBottomNav active={activeTab} onChange={setActiveTab} />
         </>
       ) : (
-        <Tabs defaultValue="overview" className="w-full">
+        <Tabs
+          value={activeTab}
+          onValueChange={(v) => setActiveTab(v as ExpensePlannerTab)}
+          className="w-full"
+        >
           <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="plan">Plan</TabsTrigger>
@@ -106,10 +130,24 @@ export function ExpensePlannerPage() {
             {mappings}
           </TabsContent>
           <TabsContent value="chat" className="mt-6">
-            <ChatTab state={state} />
+            {chat}
           </TabsContent>
         </Tabs>
       )}
     </div>
+  );
+}
+
+export function ExpensePlannerPage() {
+  return (
+    <Suspense
+      fallback={
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
+          <ExpensePlannerPageSkeleton />
+        </motion.div>
+      }
+    >
+      <ExpensePlannerPageContent />
+    </Suspense>
   );
 }

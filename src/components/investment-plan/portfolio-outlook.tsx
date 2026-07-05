@@ -2,6 +2,7 @@
 
 import {
   PROJECTION_MAX_YEARS,
+  type AggregatedPlanFees,
   type ProjectionResponse,
   type ReturnPeriod,
 } from "@portfolio/contracts";
@@ -11,6 +12,7 @@ import { ProjectionLineChart } from "./projection-line-chart";
 import { MetricChips, type MetricChip } from "./metric-chips";
 import { HorizonTiles } from "./horizon-tiles";
 import { formatCompactCurrency } from "@/lib/investment-plan/format";
+import { planFeesChips } from "./plan-fees-summary";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 
 export function PortfolioOutlook({
@@ -20,6 +22,7 @@ export function PortfolioOutlook({
   instrumentCount,
   unallocatedDollars,
   unallocatedPercent,
+  aggregatedPlanFees,
   projectionRate,
   onProjectionRateChange,
   reinvestDividends,
@@ -32,6 +35,7 @@ export function PortfolioOutlook({
   instrumentCount: number;
   unallocatedDollars: number;
   unallocatedPercent: number;
+  aggregatedPlanFees: AggregatedPlanFees | null;
   projectionRate: ReturnPeriod;
   onProjectionRateChange: (p: ReturnPeriod) => void;
   reinvestDividends: boolean;
@@ -59,6 +63,7 @@ export function PortfolioOutlook({
       tone: "warning",
     });
   }
+  headerChips.push(...planFeesChips(aggregatedPlanFees));
 
   const header = (
     <>

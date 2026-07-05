@@ -7,7 +7,7 @@
  *   node scripts/dev.mjs --local      # localhost:7071
  *   node scripts/dev.mjs --azure-dev  # explicit Azure dev
  */
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -25,7 +25,7 @@ const TARGETS = {
     env: {
       NEXT_PUBLIC_APP_ENV: "local",
       NEXT_PUBLIC_API_URL: "http://localhost:7071/api",
-      NEXT_PUBLIC_DEFAULT_HOUSEHOLD_ID: "local-household",
+      NEXT_PUBLIC_DEFAULT_HOUSEHOLD_ID: "dev-household",
     },
   },
   "azure-dev": {
@@ -76,7 +76,23 @@ function resolvePort() {
   return process.env.PORT?.trim() || "3000";
 }
 
+function buildContracts() {
+  const contractsRoot = path.resolve(root, "..", "portfolio-contracts");
+  console.log("[portfolio-web] Building @portfolio/contracts…");
+  const result = spawnSync("npm", ["run", "build"], {
+    cwd: contractsRoot,
+    stdio: "inherit",
+    shell: process.platform === "win32",
+  });
+  if (result.status !== 0) {
+    console.error("[portfolio-web] Failed to build @portfolio/contracts.");
+    process.exit(result.status ?? 1);
+  }
+}
+
 async function main() {
+  buildContracts();
+
   const targetKey = parseTarget();
   const target = TARGETS[targetKey];
   const port = resolvePort();

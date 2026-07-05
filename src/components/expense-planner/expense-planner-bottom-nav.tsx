@@ -1,9 +1,9 @@
 "use client";
 
-import { LineChart, ListTodo, PieChart, Tags, type LucideIcon } from "lucide-react";
+import { LineChart, ListTodo, MessageCircle, PieChart, Tags, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export type ExpensePlannerTab = "overview" | "plan" | "outlook" | "mappings";
+export type ExpensePlannerTab = "overview" | "plan" | "outlook" | "mappings" | "chat";
 
 type TabConfig = {
   id: ExpensePlannerTab;
@@ -16,6 +16,7 @@ const TABS: TabConfig[] = [
   { id: "plan", label: "Plan", icon: ListTodo },
   { id: "outlook", label: "Outlook", icon: LineChart },
   { id: "mappings", label: "Mappings", icon: Tags },
+  { id: "chat", label: "Chat", icon: MessageCircle },
 ];
 
 export function ExpensePlannerBottomNav({
@@ -31,7 +32,7 @@ export function ExpensePlannerBottomNav({
       role="tablist"
       aria-label="Expense planner sections"
     >
-      <div className="mx-auto grid max-w-[1080px] grid-cols-4">
+      <div className="mx-auto grid max-w-[1080px] grid-cols-5">
         {TABS.map(({ id, label, icon: Icon }) => {
           const isActive = active === id;
           return (

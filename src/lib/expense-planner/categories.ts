@@ -1,5 +1,5 @@
 import type { ExpenseCategoryPreference, TransactionCategory } from "@portfolio/contracts";
-import { DEFAULT_CATEGORY_LABELS } from "@portfolio/contracts";
+import { DEFAULT_CATEGORY_LABELS, isExpenseCategory } from "@portfolio/contracts";
 
 export const CATEGORY_COLORS: Record<TransactionCategory, string> = {
   income: "bg-blue-500",
@@ -31,11 +31,19 @@ export function mergeCategoryLabel(
 export function visibleCategoryPreferences(
   preferences: ExpenseCategoryPreference[]
 ): ExpenseCategoryPreference[] {
-  return preferences.filter((c) => !c.hidden);
+  return preferences.filter((c) => !c.hidden && isExpenseCategory(c.category));
 }
 
 export function hiddenCategoryPreferences(
   preferences: ExpenseCategoryPreference[]
 ): ExpenseCategoryPreference[] {
-  return preferences.filter((c) => c.hidden);
+  return preferences.filter(
+    (c) => c.hidden && isExpenseCategory(c.category)
+  );
+}
+
+export function expenseCategoryPreferences(
+  preferences: ExpenseCategoryPreference[]
+): ExpenseCategoryPreference[] {
+  return preferences.filter((c) => isExpenseCategory(c.category));
 }

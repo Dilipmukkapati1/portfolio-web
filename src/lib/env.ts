@@ -25,7 +25,7 @@ export function describeApiTarget(apiUrl: string): string {
 const ENV_DEFAULTS = {
   local: {
     apiUrl: "http://localhost:7071/api",
-    defaultHouseholdId: "local-household",
+    defaultHouseholdId: "dev-household",
   },
   development: {
     apiUrl: DEV_API_URL,

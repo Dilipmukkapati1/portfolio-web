@@ -7,7 +7,10 @@
     "dev": "node scripts/dev.mjs",
     "dev:azure": "node scripts/dev.mjs --azure-dev",
     "dev:local": "node scripts/dev.mjs --local",
+    "predev:local": "node scripts/ensure-dev-env.mjs",
+    "predev:azure": "node scripts/ensure-dev-env.mjs",
     "dev:local-api": "node scripts/dev.mjs --local",
+    "prebuild": "npm run build --prefix ../portfolio-contracts",
     "build": "next build && node scripts/copy-standalone.mjs",
     "start": "next start",
     "lint": "next lint",
@@ -17,7 +20,7 @@
     "deploy:prod": "bash scripts/deploy.sh prod"
   },
   "dependencies": {
-    "@portfolio/contracts": "github:Dilipmukkapati1/portfolio-contracts#main",
+    "@portfolio/contracts": "file:../portfolio-contracts",
     "@radix-ui/react-avatar": "^1.1.3",
     "@radix-ui/react-dialog": "^1.1.6",
     "@radix-ui/react-dropdown-menu": "^2.1.6",

@@ -16,6 +16,8 @@
 # production
 /build
 /.swa-deploy/
+.local/
+*-swa-oryx/
 
 # misc
 .DS_Store

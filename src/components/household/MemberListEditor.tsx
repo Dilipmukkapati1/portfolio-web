@@ -11,6 +11,20 @@ type MemberListEditorProps = {
 };
 
 export function MemberListEditor({ members, onChange }: MemberListEditorProps) {
+  function addDependent() {
+    onChange([
+      ...members,
+      {
+        id: newLocalId(),
+        name: "",
+        relationship: "dependent",
+        isActive: true,
+        incomeSources: [],
+        contributions: [],
+      },
+    ]);
+  }
+
   function addMember() {
     onChange([
       ...members,
@@ -54,14 +68,24 @@ export function MemberListEditor({ members, onChange }: MemberListEditorProps) {
             &quot;Dependent&quot;.
           </p>
         </div>
-        <Button
-          type="button"
-          variant="outline"
-          className="min-h-11 w-full sm:w-auto"
-          onClick={addMember}
-        >
-          Add member
-        </Button>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Button
+            type="button"
+            variant="outline"
+            className="min-h-11 w-full sm:w-auto"
+            onClick={addDependent}
+          >
+            Add dependent
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            className="min-h-11 w-full sm:w-auto"
+            onClick={addMember}
+          >
+            Add member
+          </Button>
+        </div>
       </div>
 
       {members.length === 0 ? (
